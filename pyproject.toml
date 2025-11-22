@@ -1,0 +1,21 @@
+[project]
+name = "aith-book-rag"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "Maxim Abramov",email = "abramovmaxim.894@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11,<4.0.0"
+dependencies = [
+    "pydantic (>=2.12.4,<3.0.0)",
+    "omegaconf (>=2.3.0,<3.0.0)",
+    "python-dotenv (>=1.2.1,<2.0.0)",
+    "langchain-openai (>=1.0.3,<2.0.0)",
+    "langchain-ollama (>=1.0.0,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
