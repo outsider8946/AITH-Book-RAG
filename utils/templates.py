@@ -20,9 +20,11 @@ FEATURE_EXTRACT_TEMPLATE = """Your task is to extract list of entities and their
      1. Your descriptions on entities and relationships should mention how they are described or introduced in the text.
      2. Your descriptions should also include excerpts from the text to justify or support your description.
 
-     Formatting instructions:
+     Output fromat in JSON:
      {format_instructions}
 
      Text:
      {text}
+
+     Answer in output format in Russian language:
     """

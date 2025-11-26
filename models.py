@@ -10,7 +10,7 @@ class Entity(BaseModel):
 class Relationship(BaseModel):
     entity_1: str = Field(description='Название сущности 1 (lowercase)')
     entity_2: str = Field(description='Название сущности 2 (lowercase)')
-    relationship_type: str = Field(description='Тип связи между сущностями 1 and 2 (lowercase and snake case)')
+    relationship_type: str = Field(description='Тип связи между сущностями 1 and 2 на русском (lowercase and snake case)')
     description: str = Field(description='Описание как связь описана или представлена в текста')
 
 class EntitiesRelationships(BaseModel):

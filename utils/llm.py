@@ -27,16 +27,28 @@ class LLMOllama(ChatOllama):
 class LLMOpenRouter(ChatOpenAI):
         def __init__(self, config: DictConfig):
             super().__init__(base_url="https://openrouter.ai/api/v1", 
-                            api_key=SecretStr(os.environ.get("OPENROUTER_API_KEY") or ""),
+                            api_key=SecretStr(os.environ.get("LLM_API_KEY") or ""),
                             model=config.llm.model_name,
                             temperature=config.llm.temperature,
                             top_p=config.llm.top_p,
                             presence_penalty=config.llm.repeat_penalty)
 
+class LLMDeepSeek(ChatOpenAI):
+    def __init__(self, config: DictConfig):
+        super().__init__(base_url="https://api.deepseek.com", 
+                        api_key=SecretStr(os.environ.get("LLM_API_KEY") or ""),
+                        model=config.llm.model_name,
+                        temperature=config.llm.temperature,
+                        top_p=config.llm.top_p,
+                        presence_penalty=config.llm.repeat_penalty)
+
+
 
 class LLMWorker():
     def __init__(self, config: DictConfig):
-        if config.llm.local:
+        if config.llm.deepseek:
+            self.llm = LLMDeepSeek(config)
+        elif config.llm.local:
             self.llm = LLMOllama(config)
         else:
             self.llm = LLMOpenRouter(config)
@@ -50,8 +62,7 @@ class LLMWorker():
             chain = RunnablePassthrough() | prompt | self.llm | parser
         else:
             chain = RunnablePassthrough() | prompt | self.llm
-
-        return chain.invoke(input).content 
+        return chain.invoke(input) 
     
     def _test_llm(self):
         return self.llm.invoke('Who are you?')
