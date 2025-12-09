@@ -22,6 +22,6 @@ CALL apoc.create.relationship(
   b
 ) YIELD rel AS createdRel
 
-RETURN 
+RETURN
   count(DISTINCT a) + count(DISTINCT b) AS nodes_touched,
   count(createdRel) AS rels_created
