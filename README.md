@@ -35,3 +35,17 @@ To install pre-commit hooks:
 ```bash
 pre-commit install
 ```
+
+## Run locally (dev)
+
+- Backend (FastAPI):
+  ```bash
+  poetry install
+  poetry run uvicorn backend.main:app --reload --port 8000
+  ```
+- Frontend (Vite):
+  ```bash
+  cd frontend
+  pnpm install
+  pnpm dev
+  ```
