@@ -10,18 +10,18 @@ class Neo4jLoader:
         self.llm = LLMWorker(config)
 
     def _extract_nodes_and_realtions(self):
-        save_path = Path("./data")
+        save_path = Path("./data/entities_and_relations")
         save_path.mkdir(exist_ok=True)
 
         data_path = Path(self.path2data)
         parts = [item for item in data_path.iterdir() if item.is_dir()]
         for part in tqdm(parts, total=len(parts), desc="parts"):
-            chapters_path = data_path / part
+            chapters_path = part
             chapters = [item for item in chapters_path.iterdir() if item.is_file()]
             for chapter in tqdm(
                 chapters, total=len(chapters), desc=f"chapters of {part.name}"
             ):
-                chapter_path = chapters_path / chapter
+                chapter_path = chapter
                 chapter_content = chapter_path.read_text(encoding="utf-8")
                 entities_and_realations = self.llm.get_entities_and_relations(
                     chapter_content

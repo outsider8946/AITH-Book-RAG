@@ -1,4 +1,6 @@
-# Usage
+# AITH Book RAG
+
+## Usage
 
 To split the text into chapters only, run the following command:
 
@@ -6,7 +8,21 @@ To split the text into chapters only, run the following command:
 python utils/text_splitter.py
 ```
 
-# Development
+## Entities and relations
+
+- Generate with LLM and save to `data/entities_and_relations`:
+
+```bash
+poetry run python utils/db_loader.py
+```
+
+- Download pre-generated JSONs from the shared Drive folder into `data/entities_and_relations`:
+
+```bash
+poetry run python utils/download_entities.py
+```
+
+## Development
 
 To install the project dependencies:
 
@@ -19,3 +35,17 @@ To install pre-commit hooks:
 ```bash
 pre-commit install
 ```
+
+## Run locally (dev)
+
+- Backend (FastAPI):
+  ```bash
+  poetry install
+  poetry run uvicorn backend.main:app --reload --port 8000
+  ```
+- Frontend (Vite):
+  ```bash
+  cd frontend
+  pnpm install
+  pnpm dev
+  ```
