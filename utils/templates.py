@@ -1,30 +1,30 @@
-FEATURE_EXTRACT_TEMPLATE = """Your task is to extract list of entities and their relationships from the text given to you.
+FEATURE_EXTRACT_TEMPLATE = """Ваша задача — извлечь из предоставленного текста список сущностей и связей между ними.
 
-     Instructions on extracting entities -
-     1. Make sure that the name of the entities are proper nouns and does not contain adjectives, pronouns, and prepositions. 
-     2. Only include entities which you think are important and relevant from the text.
-     3. Avoid generic entities.
-     4. Entity Type should be in lowercase snake_case.
-     5. Name of entities should be lowercase.
-     
-     Instructions on extracting relationships -
-     1. Only extract relationships for entities you will be mentioning.
-     2. Ensure you only include relationships between entities that you have extracted.
-     3. Relationship Type should be in lowercase snake_case.
-     4. Name of entities 1 & 2 should match with the list of entities.
-     5. Entities 1 & 2 both should be part of entities for them to have a relationship.
-     6. Relationship is directed and defined from Entity 1 to Entity 2, i.e. e1 -> e2 
-     7. If a relationship is bidirectional, inverse reverse relationship, i.e. e2 -> e1
+Инструкции по извлечению сущностей:
+1. Убедитесь, что названия сущностей являются именами собственными и не содержат прилагательных, местоимений или предлогов.
+2. Включайте только те сущности, которые, по вашему мнению, важны и релевантны тексту.
+3. Избегайте обобщённых (неспецифичных) сущностей.
+4. Тип сущности должен быть указан строчными буквами в формате snake_case.
+5. Названия сущностей должны быть в нижнем регистре.
 
-     Instructions on descriptions -
-     1. Your descriptions on entities and relationships should mention how they are described or introduced in the text.
-     2. Your descriptions should also include excerpts from the text to justify or support your description.
+Инструкции по извлечению связей:
+1. Извлекайте связи только между сущностями, которые вы уже упомянули в списке.
+2. Убедитесь, что вы указываете связи исключительно между извлечёнными сущностями.
+3. Тип связи должен быть указан строчными буквами в формате snake_case.
+4. Названия «Сущность_1» и «Сущность_2» должны точно совпадать с названиями из списка сущностей.
+5. Обе сущности (Сущность_1 и Сущность_2) обязательно должны присутствовать в списке сущностей.
+6. Связь является направленной: от Сущности_1 к Сущности_2, то есть Сущность_1 → Сущность_2.
+7. Если связь двунаправленная, добавьте две отдельные связи: прямую (e1 → e2) и обратную (e2 → e1).
 
-     Output fromat in JSON:
-     {format_instructions}
+Инструкции по описаниям:
+1. Описания сущностей и связей должны отражать, как они представлены или упомянуты в тексте.
+2. В описаниях обязательно приводите цитаты или выдержки из текста в качестве подтверждения.
 
-     Text:
-     {text}
+Формат вывода — JSON:
+{format_instructions}
 
-     Answer in output format in Russian language:
-    """
+Текст:
+{text}
+
+Ответ предоставьте в указанном формате вывода на русском языке:
+"""
