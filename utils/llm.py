@@ -52,14 +52,28 @@ class LLMDeepSeek(ChatOpenAI):
         )
 
 
+class LLMMistral(ChatOpenAI):
+    def __init__(self, config: DictConfig):
+        super().__init__(
+            base_url="https://api.mistral.ai/v1",
+            api_key=SecretStr(os.environ.get("LLM_API_KEY") or ""),
+            model=config.llm.model_name,
+            temperature=config.llm.temperature,
+            top_p=config.llm.top_p,
+            presence_penalty=config.llm.repeat_penalty,
+        )
+
+
 class LLMWorker:
     def __init__(self, config: DictConfig):
-        if config.llm.deepseek:
-            self.llm = LLMDeepSeek(config)
-        elif config.llm.local:
-            self.llm = LLMOllama(config)
-        else:
-            self.llm = LLMOpenRouter(config)
+        llm_type = config.llm.type
+        llm_map = {
+            "mistral": LLMMistral,
+            "deepseek": LLMDeepSeek,
+            "local": LLMOllama,
+            "openrouter": LLMOpenRouter,
+        }
+        self.llm = llm_map.get(llm_type)(config)
 
         self.history = []
 

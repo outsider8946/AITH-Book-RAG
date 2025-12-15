@@ -1,8 +1,7 @@
 llm:
   model_name: "deepseek-chat"
-  local: True
   temperature: 0.5
   top_k: 20
   top_p: 0.95
   repeat_penalty: 1.0
-  deepseek: True
+  type: "deepseek"
