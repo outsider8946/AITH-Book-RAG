@@ -9,7 +9,8 @@ class Entity(BaseModel):
         description="Является ли сущность единственной (true) или множественной (false)"
     )
     description: str = Field(
-        description="Описание как сущность описана или представлена в тексте"
+        description="Описание сущности в данном тексте",
+        default=""
     )
 
 
@@ -20,7 +21,8 @@ class Relationship(BaseModel):
         description="Тип связи между сущностями 1 and 2 на русском (lowercase and snake case)"
     )
     description: str = Field(
-        description="Описание как связь описана или представлена в текста"
+        description="Описание, как связь описана или представлена в данном тексте",
+        default=""
     )
 
 
@@ -29,3 +31,8 @@ class EntitiesRelationships(BaseModel):
     relationships: List[Relationship] = Field(
         description="Список связей между сущностями", default=[]
     )
+
+
+class CanonicalName(BaseModel):
+    canonical_name: str = Field(description='Каноническое имя персонажа (наиболее популярное и узнаваемое)')
+    alias: List[str] = Field(description='Список всех его псевдонимов и других названий из списка')

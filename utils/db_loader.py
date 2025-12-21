@@ -1,3 +1,4 @@
+import re
 import json
 from tqdm import tqdm
 from pathlib import Path
@@ -8,55 +9,86 @@ from utils.config_loader import config
 
 
 class Neo4jLoader:
-    def __init__(self, path2data: str = None):
-        self.path2data = path2data
+    def __init__(self, path2data: str = None, path2save: str = "./data/entities_and_relations_v2"):
+        self.path2data = Path(path2data)
+        self.path2save = Path(path2save)
         self.llm = LLMWorker(config)
         self.uri = 'neo4j://localhost:7687'
         self.username = 'neo4j'
         self.password = 'password123' 
 
     def _extract_nodes_and_realtions(self):
-        save_path = Path("./data/entities_and_relations")
-        save_path.mkdir(exist_ok=True)
-
-        data_path = Path(self.path2data)
-        parts = [item for item in data_path.iterdir() if item.is_dir()]
+        self.path2save.mkdir(exist_ok=True)
+        parts = [item for item in self.path2data.iterdir() if item.is_dir()]
         for part in tqdm(parts, total=len(parts), desc="parts"):
             chapters_path = part
             chapters = [item for item in chapters_path.iterdir() if item.is_file()]
             for chapter in tqdm(
                 chapters, total=len(chapters), desc=f"chapters of {part.name}"
             ):
+                file_name = f"{part.name}-{chapter.stem}.json"
+                path2json = self.path2save / file_name
                 chapter_path = chapter
                 chapter_content = chapter_path.read_text(encoding="utf-8")
                 entities_and_realations = self.llm.get_entities_and_relations(
                     chapter_content
                 ).model_dump_json(indent=4, ensure_ascii=False)
-                file_name = f"{part.name}-{chapter.stem}.json"
-                with open(save_path / file_name, "w", encoding="utf-8") as f:
+                with open(path2json, "w", encoding="utf-8") as f:
                     f.write(entities_and_realations)
     
     def _convert_nodes(self, nodes):
         query = ""
         params = {}
+        nodes = self._canonical_nodes(nodes)
+        nodes = self._merge_nodes(nodes)
+
         for node in nodes:
             name = node['name']
-            name = name.replace(' ', '_')
-            name = name.replace('-', '_')
+            name = re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9]', '_', name).strip('_')
             params[name] = node
             query += f"""CREATE (:{node["entity_type"]} ${name})\n"""
         
         return (query, params)
+            
+    def _canonical_nodes(self, nodes):
+        canonical_names_items = json.load(open('data/canonical_names.json'))['персонажи']
+        unique_nodes = []
+        for node in nodes:
+            if node['entity_type'] == 'персонаж':
+                for item in canonical_names_items:
+                    if node['name'].lower() in item['псевдонимы']:
+                        node['name'] = item['каноническое_имя']
+                        break
+            unique_nodes.append(node)
+
+        return unique_nodes
+    
+    def _merge_nodes(self, nodes):
+        nodes_dict = {}
+        for node in nodes:
+            if node['name'] not in nodes_dict:
+                nodes_dict[node['name']] = [node]
+            else:
+                nodes_dict[node['name']].append(node)
+        
+        merges_nodes = []
+
+        for value in nodes_dict.values():
+            general_description = '\n'.join([item['description'] for item in value])
+            merge_node = value[0]
+            merge_node['description'] = general_description
+            merges_nodes.append(merge_node)
+        
+        return merges_nodes
+               
     
     def _convert_edges(self, edges: list):
         if not edges:
             return "", {}
 
-        # Подготавливаем данные для UNWIND
         edge_data = []
         for edge in edges:
             rel_type = edge["relationship_type"]
-            # Экранируем тип связи, если содержит недопустимые символы
             if not rel_type.replace("_", "").replace("-", "").isalnum() or not rel_type[0].isalpha():
                 rel_type = f"`{rel_type}`"
             edge_data.append({
@@ -66,7 +98,6 @@ class Neo4jLoader:
                 "description": edge.get("description", "")
             })
 
-        # Единый запрос с UNWIND
         query = """
     UNWIND $edges AS edge
     MATCH (a {name: edge.src_name})
@@ -79,20 +110,51 @@ class Neo4jLoader:
         params = {"edges": edge_data}
         return query, params
 
-    
-    def load2db(self, data_path: str = None):
-        if not data_path:
-            data_path = '/home/dolor/code/AITH-Book-RAG/data/Часть вторая-01_Контрабандисты.json'
+    def test_preprocessing_nodes(self):
+        data_path = [
+                '/home/dolor/code/AITH-Book-RAG/data/entities_and_relations_v2/Часть вторая-01_Контрабандисты.json',
+                '/home/dolor/code/AITH-Book-RAG/data/entities_and_relations_v2/Часть вторая-02_Остров Монте-Кристо.json'
+        ]
+        nodes = []
+        for path in data_path:
+            temp_nodes = json.load(open(path))['entities']
+            nodes.extend(temp_nodes)
+
+        nodes = self._canonical_nodes(nodes)
+        nodes = self._merge_nodes(nodes)
         
-        json_data = json.load(open(data_path))
-        entities = json_data['entities']
-        edges = json_data['relationships']
-        query_node, params_node = self._convert_nodes(entities)
+        return nodes
+    
+    def load2db(self):
+        nodes = []
+        edges = []
+        files = [item for item in self.path2save.iterdir() if item.is_file()]
+        for file in files:
+            json_data = json.load(open(file))
+            nodes.extend(json_data['entities'])
+            edges.extend(json_data['relationships'])
+
+        query_node, params_node = self._convert_nodes(nodes)
         query_edge, params_edge = self._convert_edges(edges)
         
         with GraphDatabase.driver(self.uri, auth=(self.username, self.password)) as driver:
-            driver.execute_query("MATCH (n) DETACH DELETE n", database="neo4j")
             records, summary_node, keys = driver.execute_query(query_node, params_node, database='neo4j')
             records, summary_edge, keys = driver.execute_query(query_edge, params_edge, database='neo4j')
             return summary_node, summary_edge
+    
+    def _canonical_names(self):
+        unqiue_names = set()
+        json_files = [item for item in self.path2save.iterdir() if item.is_file()]
+        nodes = []
+        for file in json_files:
+            json_item = json.load(open(file))
+            nodes.extend(json_item['entities'])
+
+        for node in nodes:
+            if node['name'] not in unqiue_names and node['entity_type'] == 'персонаж':
+                unqiue_names.add(node['name'])
+
+        return list(unqiue_names)
+    
+        
         
