@@ -8,10 +8,7 @@ class Entity(BaseModel):
     singular: bool = Field(
         description="Является ли сущность единственной (true) или множественной (false)"
     )
-    description: str = Field(
-        description="Описание сущности",
-        default=""
-    )
+    description: str = Field(description="Описание сущности", default="")
 
 
 class Relationship(BaseModel):
@@ -22,7 +19,7 @@ class Relationship(BaseModel):
     )
     description: str = Field(
         description="Описание связи, как связь описана или представлена в данном тексте. Что именно произошло",
-        default=""
+        default="",
     )
 
 
@@ -34,5 +31,9 @@ class EntitiesRelationships(BaseModel):
 
 
 class CanonicalName(BaseModel):
-    canonical_name: str = Field(description='Каноническое имя персонажа (наиболее популярное и узнаваемое)')
-    alias: List[str] = Field(description='Список всех его псевдонимов и других названий из списка')
+    canonical_name: str = Field(
+        description="Каноническое имя персонажа (наиболее популярное и узнаваемое)"
+    )
+    alias: List[str] = Field(
+        description="Список всех его псевдонимов и других названий из списка"
+    )

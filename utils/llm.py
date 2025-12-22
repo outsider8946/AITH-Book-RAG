@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
 from utils.templates import (
-    FEATURE_EXTRACT_TEMPLATE, 
+    FEATURE_EXTRACT_TEMPLATE,
     CANONICAL_NAMES_TEMPLATE,
     ANSWER_TEMPLATE,
 )
@@ -15,10 +15,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers.pydantic import PydanticOutputParser
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from models import (
-    EntitiesRelationships,
-    CanonicalName,
-)
+from models import EntitiesRelationships, CanonicalName
 
 load_dotenv()
 
@@ -58,7 +55,7 @@ class LLMDeepSeek(ChatOpenAI):
             top_p=config.llm.top_p,
             presence_penalty=config.llm.repeat_penalty,
             max_retries=3,
-            timeout=60
+            timeout=60,
         )
 
 
@@ -107,16 +104,19 @@ class LLMWorker:
         return await self._run_llm(
             input=input, template=FEATURE_EXTRACT_TEMPLATE, parser=parser
         )
-    
+
     async def get_canonical_names(self, names: list):
-        parser = JsonOutputParser(schema={"type": "array", "items": CanonicalName.model_json_schema()})
-        input = {"names": names, "format_instructions": parser.get_format_instructions()}
+        parser = JsonOutputParser(
+            schema={"type": "array", "items": CanonicalName.model_json_schema()}
+        )
+        input = {
+            "names": names,
+            "format_instructions": parser.get_format_instructions(),
+        }
         return await self._run_llm(
             input=input, template=CANONICAL_NAMES_TEMPLATE, parser=parser
         )
-    
+
     async def answer(self, query: str, context: str):
-        input = {'context': context, 'query': query}
-        return await self._run_llm(
-            input=input, template=ANSWER_TEMPLATE,
-        )
+        input = {"context": context, "query": query}
+        return await self._run_llm(input=input, template=ANSWER_TEMPLATE)
