@@ -33,7 +33,7 @@ poetry install
 To install pre-commit hooks:
 
 ```bash
-pre-commit install
+poetry run pre-commit install
 ```
 
 ## Run locally (dev)
