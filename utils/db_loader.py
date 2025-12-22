@@ -1,6 +1,7 @@
 import re
 import json
 from tqdm import tqdm
+from tqdm.asyncio import tqdm_asyncio
 from pathlib import Path
 from neo4j import GraphDatabase
 
@@ -9,7 +10,7 @@ from utils.config_loader import config
 
 
 class Neo4jLoader:
-    def __init__(self, path2data: str = None, path2save: str = "./data/entities_and_relations_v2"):
+    def __init__(self, path2data: str = '', path2save: str = "./data/entities_and_relations_v2"):
         self.path2data = Path(path2data)
         self.path2save = Path(path2save)
         self.llm = LLMWorker(config)
@@ -17,7 +18,14 @@ class Neo4jLoader:
         self.username = 'neo4j'
         self.password = 'password123' 
 
-    def _extract_nodes_and_realtions(self):
+    async def _precess_extract_nodes_and_edges(self, path2json, chapter):
+        chapter_content = chapter.read_text(encoding="utf-8")
+        entities_and_realations = await self.llm.get_entities_and_relations(chapter_content)
+        json_data = entities_and_realations.model_dump_json(indent=4, ensure_ascii=False)
+        path2json.write_text(json_data, encoding="utf-8")
+
+    async def _extract_nodes_and_realtions(self):
+        tasks = []
         self.path2save.mkdir(exist_ok=True)
         parts = [item for item in self.path2data.iterdir() if item.is_dir()]
         for part in tqdm(parts, total=len(parts), desc="parts"):
@@ -28,17 +36,15 @@ class Neo4jLoader:
             ):
                 file_name = f"{part.name}-{chapter.stem}.json"
                 path2json = self.path2save / file_name
-                chapter_path = chapter
-                chapter_content = chapter_path.read_text(encoding="utf-8")
-                entities_and_realations = self.llm.get_entities_and_relations(
-                    chapter_content
-                ).model_dump_json(indent=4, ensure_ascii=False)
-                with open(path2json, "w", encoding="utf-8") as f:
-                    f.write(entities_and_realations)
-    
+                tasks.append(self._precess_extract_nodes_and_edges(path2json, chapter))
+        
+        if len(tasks) > 0:
+            await tqdm_asyncio.gather(*tasks, desc=f"Chapters of {part.name}")
+        
     def _convert_nodes(self, nodes):
         query = ""
         params = {}
+
         nodes = self._canonical_nodes(nodes)
         nodes = self._merge_nodes(nodes)
 
@@ -54,12 +60,15 @@ class Neo4jLoader:
         canonical_names_items = json.load(open('data/canonical_names.json'))['персонажи']
         unique_nodes = []
         for node in nodes:
-            if node['entity_type'] == 'персонаж':
+            if node['entity_type'] in {'персонаж', 'person', 'персона'}:
                 for item in canonical_names_items:
                     if node['name'].lower() in item['псевдонимы']:
                         node['name'] = item['каноническое_имя']
                         break
             unique_nodes.append(node)
+        
+        with open('./data/unqiue_nodes.json', 'w', encoding='utf-8') as f:
+            json.dump(unique_nodes, f, indent=4, ensure_ascii=False)
 
         return unique_nodes
     
@@ -71,15 +80,18 @@ class Neo4jLoader:
             else:
                 nodes_dict[node['name']].append(node)
         
-        merges_nodes = []
+        merge_nodes = []
 
         for value in nodes_dict.values():
-            general_description = '\n'.join([item['description'] for item in value])
+            #general_description = '\n'.join([item['description'] for item in value])
             merge_node = value[0]
-            merge_node['description'] = general_description
-            merges_nodes.append(merge_node)
+            merge_node['description'] = value[0]['description']
+            merge_nodes.append(merge_node)
         
-        return merges_nodes
+        with open('./data/merge_nodes.json', 'w', encoding='utf-8') as f:
+            json.dump(merge_nodes, f, indent=4, ensure_ascii=False)
+        
+        return merge_nodes
                
     
     def _convert_edges(self, edges: list):
@@ -138,9 +150,24 @@ class Neo4jLoader:
         query_edge, params_edge = self._convert_edges(edges)
         
         with GraphDatabase.driver(self.uri, auth=(self.username, self.password)) as driver:
+            driver.execute_query("MATCH (n) DETACH DELETE n", database='neo4j')
             records, summary_node, keys = driver.execute_query(query_node, params_node, database='neo4j')
             records, summary_edge, keys = driver.execute_query(query_edge, params_edge, database='neo4j')
             return summary_node, summary_edge
+    
+    def test_extract_nodes_and_edges(self):
+        path2save = Path('./data/test')
+        path2save.mkdir(exist_ok=True)
+        path = [Path('/home/dolor/code/AITH-Book-RAG/monte_cristo_chapters/Часть вторая/01_Контрабандисты.txt'),
+                Path('/home/dolor/code/AITH-Book-RAG/monte_cristo_chapters/Часть вторая/02_Остров Монте-Кристо.txt'),
+                Path('/home/dolor/code/AITH-Book-RAG/monte_cristo_chapters/Часть вторая/05_Трактир «Гарский мост».txt')
+        ]
+
+        for file in tqdm(path):
+            text = file.read_text(encoding="utf-8")
+            entities_and_realations = self.llm.get_entities_and_relations(text).model_dump_json(indent=4, ensure_ascii=False)
+            with open(f'{path2save/file.stem}.json', "w", encoding="utf-8") as f:
+                f.write(entities_and_realations)
     
     def _canonical_names(self):
         unqiue_names = set()

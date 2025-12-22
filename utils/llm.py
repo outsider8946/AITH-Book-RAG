@@ -57,6 +57,8 @@ class LLMDeepSeek(ChatOpenAI):
             temperature=config.llm.temperature,
             top_p=config.llm.top_p,
             presence_penalty=config.llm.repeat_penalty,
+            max_retries=3,
+            timeout=60
         )
 
 
@@ -85,7 +87,7 @@ class LLMWorker:
 
         self.history = []
 
-    def _run_llm(
+    async def _run_llm(
         self, input: Dict[str, str], template: str, parser: Optional[Type[T]] = None
     ):
         prompt = ChatPromptTemplate.from_template(template)
@@ -94,27 +96,27 @@ class LLMWorker:
             chain = RunnablePassthrough() | prompt | self.llm | parser
         else:
             chain = RunnablePassthrough() | prompt | self.llm
-        return chain.invoke(input)
+        return await chain.ainvoke(input)
 
     def _test_llm(self):
         return self.llm.invoke("Who are you?")
 
-    def get_entities_and_relations(self, text: str):
+    async def get_entities_and_relations(self, text: str):
         parser = PydanticOutputParser(pydantic_object=EntitiesRelationships)
         input = {"text": text, "format_instructions": parser.get_format_instructions()}
-        return self._run_llm(
+        return await self._run_llm(
             input=input, template=FEATURE_EXTRACT_TEMPLATE, parser=parser
         )
     
-    def get_canonical_names(self, names: list):
+    async def get_canonical_names(self, names: list):
         parser = JsonOutputParser(schema={"type": "array", "items": CanonicalName.model_json_schema()})
         input = {"names": names, "format_instructions": parser.get_format_instructions()}
-        return self._run_llm(
+        return await self._run_llm(
             input=input, template=CANONICAL_NAMES_TEMPLATE, parser=parser
         )
     
-    def answer(self, query: str, context: str):
+    async def answer(self, query: str, context: str):
         input = {'context': context, 'query': query}
-        return self._run_llm(
+        return await self._run_llm(
             input=input, template=ANSWER_TEMPLATE,
         )

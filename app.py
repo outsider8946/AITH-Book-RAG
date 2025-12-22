@@ -1,6 +1,15 @@
+import json
 from utils.db_loader import Neo4jLoader
+from utils.llm import LLMWorker
+from utils.config_loader import config
+from utils.rag import RAG
+import asyncio
 
-loader = Neo4jLoader()
-summary_node, summary_edge = loader.load2db()
-print(f'SUMMARY NODE:\n {summary_node}')
-print(f'SUMMARY EDGE:\n {summary_edge}')
+
+async def main():
+    loader = Neo4jLoader()
+    loader.load2db()
+    rag = RAG()
+    await rag.run('Кто арестовал Эдмона Дантеса?')
+
+asyncio.run(main())

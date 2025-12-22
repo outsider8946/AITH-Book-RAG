@@ -9,7 +9,7 @@ class Entity(BaseModel):
         description="Является ли сущность единственной (true) или множественной (false)"
     )
     description: str = Field(
-        description="Описание сущности в данном тексте",
+        description="Описание сущности",
         default=""
     )
 
@@ -21,7 +21,7 @@ class Relationship(BaseModel):
         description="Тип связи между сущностями 1 and 2 на русском (lowercase and snake case)"
     )
     description: str = Field(
-        description="Описание, как связь описана или представлена в данном тексте",
+        description="Описание связи, как связь описана или представлена в данном тексте. Что именно произошло",
         default=""
     )
 

@@ -9,9 +9,9 @@ class RAG:
         self.llm = LLMWorker(config)
         self.driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password123"))
     
-    def _extract_entity_from_query(self, query: str):
-        struct = self.llm.get_entities_and_relations(query).model_dump()
-        query_nodes = struct['entities']
+    async def _extract_entity_from_query(self, query: str):
+        struct = await self.llm.get_entities_and_relations(query)
+        query_nodes = struct.model_dump()['entities']
         # for query_node in query_nodes:
         #     query_node['name'] = re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9]', '_', query_node['name']).strip('_')
         return query_nodes
@@ -52,12 +52,12 @@ class RAG:
             
             return "\n\n".join(contexts) if contexts else "Релевантные сущности не найдены."
 
-    def run(self, query):
-        query_nodes = self._extract_entity_from_query(query)
+    async def run(self, query):
+        query_nodes = await self._extract_entity_from_query(query)
         entity_names = [node["name"].lower() for node in query_nodes]
         print('NAMES:\n', entity_names)
         context = self._graph_retrieve(entity_names)
         print('CONTEXT:\n', context)
-        answer = self.llm.answer(query=query, context=context)
+        answer = await self.llm.answer(query=query, context=context)
         print('ANSWER:\n', answer)
         
