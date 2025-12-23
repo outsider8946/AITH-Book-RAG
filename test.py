@@ -1,4 +1,4 @@
-from utils.db_loader import Neo4jLoader
+from utils.graph_loader import Neo4jLoader
 
 loader = Neo4jLoader("./data/monte_cristo_chapters")
 loader._extract_nodes_and_realtions()
