@@ -10,6 +10,6 @@ async def main():
     loader = Neo4jLoader()
     loader.load2db()
     rag = RAG()
-    await rag.run('Кто арестовал Эдмона Дантеса?')
-
+    s = await rag.run('Кто отец валентины?')
+    print(s)
 asyncio.run(main())
