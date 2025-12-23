@@ -29,3 +29,30 @@ Then open the printed Vite URL (default `http://localhost:5173`). Requests to `/
 - Chat state is managed with `@tanstack/react-query`. Queries live under `src/lib/queries`, and the shared mutation context is in `src/lib/contexts`.
 - Message shape is defined in `src/lib/types/message.ts`.
 
+## Docker
+
+You can run the frontend containerized.
+
+### Using Docker Compose (Recommended)
+Run from the project root:
+```bash
+docker-compose up --build
+```
+
+### Standalone
+Build the frontend image (run from project root):
+```bash
+docker build -t frontend-app -f frontend/Dockerfile .
+```
+
+Run the container (pointing to backend on host):
+```bash
+# For Windows/Mac (Docker Desktop)
+docker run -p 5173:5173 -e BACKEND_URL="http://host.docker.internal:8000" frontend-app
+
+# For Linux
+docker run -p 5173:5173 --add-host=host.docker.internal:host-gateway -e BACKEND_URL="http://host.docker.internal:8000" frontend-app
+```
+
+
+
