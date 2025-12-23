@@ -5,17 +5,22 @@ from pydantic import SecretStr
 from omegaconf import DictConfig
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain_ollama import ChatOllama
+from langchain_ollama import ChatOllama, OllamaEmbeddings
 from utils.templates import (
     FEATURE_EXTRACT_TEMPLATE,
     CANONICAL_NAMES_TEMPLATE,
     ANSWER_TEMPLATE,
+    QUERY2GRAPH_TEMPLATE,
 )
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers.pydantic import PydanticOutputParser
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from models import EntitiesRelationships, CanonicalName
+from models import (
+    EntitiesRelationships,
+    CanonicalName,
+    Query,
+)
 
 load_dotenv()
 
@@ -70,6 +75,12 @@ class LLMMistral(ChatOpenAI):
             presence_penalty=config.llm.repeat_penalty,
         )
 
+class EmbeddingOllama(OllamaEmbeddings):
+    def __init__(self, config: DictConfig):
+        super().__init__(
+            base_url="http://localhost:11434",
+            model=config.embeddings.model,
+        )
 
 class LLMWorker:
     def __init__(self, config: DictConfig):
@@ -81,6 +92,7 @@ class LLMWorker:
             "openrouter": LLMOpenRouter,
         }
         self.llm = llm_map.get(llm_type)(config)
+        self.embeddings = EmbeddingOllama(config)
 
         self.history = []
 
@@ -104,7 +116,15 @@ class LLMWorker:
         return await self._run_llm(
             input=input, template=FEATURE_EXTRACT_TEMPLATE, parser=parser
         )
-
+    
+    async def get_struct_from_query(self, query: str):
+        parser = JsonOutputParser(schema={"type": "array", "items": Query.model_json_schema()})
+        #parser = PydanticOutputParser(pydantic_object=Query)
+        input = {"query": query, "format_instructions": parser.get_format_instructions()}
+        return await self._run_llm(
+            input=input, template=QUERY2GRAPH_TEMPLATE, parser=parser
+        )
+    
     async def get_canonical_names(self, names: list):
         parser = JsonOutputParser(
             schema={"type": "array", "items": CanonicalName.model_json_schema()}

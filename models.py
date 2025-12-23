@@ -29,6 +29,11 @@ class EntitiesRelationships(BaseModel):
         description="Список связей между сущностями", default=[]
     )
 
+class Query(BaseModel):
+    entity: str = Field(description="Имя персонажа/места так, как они запписаны в вопросе.")
+    relationship: List[str] = Field(description="Глаголы / предикаты, которые относяся к данному персонажу/месту")
+    objects: List[str] = Field(description="Цели действий")
+    context_clues: str = Field(description="Полезные уточнения")
 
 class CanonicalName(BaseModel):
     canonical_name: str = Field(

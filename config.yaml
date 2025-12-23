@@ -5,3 +5,6 @@ llm:
   top_p: 0.95
   repeat_penalty: 1.0
   type: "deepseek"
+
+embeddings:
+  model: "nomic-embed-text"

@@ -63,15 +63,15 @@ class Neo4jLoader:
         return (query, params)
 
     def _canonical_nodes(self, nodes):
-        canonical_names_items = json.load(open("data/canonical_names.json"))[
-            "персонажи"
-        ]
+        self.names_map = {} #key - non-canonical name, value - canonical name
+        names_map = json.load(open('data/names_map.json'))
         unique_nodes = []
         for node in nodes:
-            if node["entity_type"] in {"персонаж", "person", "персона"}:
-                for item in canonical_names_items:
-                    if node["name"].lower() in item["псевдонимы"]:
-                        node["name"] = item["каноническое_имя"]
+            if node['entity_type'] in {'персонаж', 'person', 'персона'}:
+                for key, value in names_map.items():
+                    if node['name'].lower() in value:
+                        self.names_map[node['name'].lower()] = key
+                        node['name'] = key                     
                         break
             unique_nodes.append(node)
 
@@ -113,14 +113,12 @@ class Neo4jLoader:
                 or not rel_type[0].isalpha()
             ):
                 rel_type = f"`{rel_type}`"
-            edge_data.append(
-                {
-                    "src_name": edge["entity_1"],
-                    "tgt_name": edge["entity_2"],
-                    "rel_type": rel_type,
-                    "description": edge.get("description", ""),
-                }
-            )
+            edge_data.append({
+                "src_name": self.names_map.get(edge["entity_1"], edge['entity_1']),
+                "tgt_name": self.names_map.get(edge["entity_2"], edge['entity_2']),
+                "rel_type": rel_type,
+                "description": edge.get("description", "")
+            })
 
         query = """
     UNWIND $edges AS edge
@@ -132,6 +130,9 @@ class Neo4jLoader:
     """.strip()
 
         params = {"edges": edge_data}
+        with open('./data/edges.json', 'w', encoding='utf-8') as f:
+            json.dump(edge_data, f, indent=4, ensure_ascii=False)
+
         return query, params
 
     def test_preprocessing_nodes(self):
