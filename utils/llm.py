@@ -5,9 +5,9 @@ from pydantic import SecretStr
 from omegaconf import DictConfig
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
-from langchain_ollama import ChatOllama, OllamaEmbeddings
+from langchain_ollama import OllamaEmbeddings
 from utils.templates import (
-    FEATURE_EXTRACT_TEMPLATE, 
+    FEATURE_EXTRACT_TEMPLATE,
     CANONICAL_NAMES_TEMPLATE,
     ANSWER_TEMPLATE,
     QUERY2GRAPH_TEMPLATE,
@@ -16,38 +16,11 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers.pydantic import PydanticOutputParser
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from models import (
-    EntitiesRelationships,
-    CanonicalName,
-    Query,
-)
+from models import EntitiesRelationships, CanonicalName, Query
 
 load_dotenv()
 
 T = TypeVar("T", bound=BaseModel)
-
-
-class LLMOllama(ChatOllama):
-    def __init__(self, config: DictConfig):
-        super().__init__(
-            model=config.llm.model_name,
-            temperature=config.llm.temperature,
-            top_k=config.llm.top_k,
-            top_p=config.llm.top_p,
-            repeat_penalty=config.llm.repeat_penalty,
-        )
-
-
-class LLMOpenRouter(ChatOpenAI):
-    def __init__(self, config: DictConfig):
-        super().__init__(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=SecretStr(os.environ.get("LLM_API_KEY") or ""),
-            model=config.llm.model_name,
-            temperature=config.llm.temperature,
-            top_p=config.llm.top_p,
-            presence_penalty=config.llm.repeat_penalty,
-        )
 
 
 class LLMDeepSeek(ChatOpenAI):
@@ -60,7 +33,7 @@ class LLMDeepSeek(ChatOpenAI):
             top_p=config.llm.top_p,
             presence_penalty=config.llm.repeat_penalty,
             max_retries=3,
-            timeout=60
+            timeout=60,
         )
 
 
@@ -75,22 +48,18 @@ class LLMMistral(ChatOpenAI):
             presence_penalty=config.llm.repeat_penalty,
         )
 
+
 class EmbeddingOllama(OllamaEmbeddings):
     def __init__(self, config: DictConfig):
         super().__init__(
-            base_url="http://localhost:11434",
-            model=config.embeddings.model,
+            base_url="http://localhost:11434", model=config.embeddings.model
         )
+
 
 class LLMWorker:
     def __init__(self, config: DictConfig):
         llm_type = config.llm.type
-        llm_map = {
-            "mistral": LLMMistral,
-            "deepseek": LLMDeepSeek,
-            "local": LLMOllama,
-            "openrouter": LLMOpenRouter,
-        }
+        llm_map = {"mistral": LLMMistral, "deepseek": LLMDeepSeek}
         self.llm = llm_map.get(llm_type)(config)
         self.embeddings = EmbeddingOllama(config)
 
@@ -116,24 +85,31 @@ class LLMWorker:
         return await self._run_llm(
             input=input, template=FEATURE_EXTRACT_TEMPLATE, parser=parser
         )
-    
+
     async def get_struct_from_query(self, query: str):
-        parser = JsonOutputParser(schema={"type": "array", "items": Query.model_json_schema()})
-        #parser = PydanticOutputParser(pydantic_object=Query)
-        input = {"query": query, "format_instructions": parser.get_format_instructions()}
+        parser = JsonOutputParser(
+            schema={"type": "array", "items": Query.model_json_schema()}
+        )
+        input = {
+            "query": query,
+            "format_instructions": parser.get_format_instructions(),
+        }
         return await self._run_llm(
             input=input, template=QUERY2GRAPH_TEMPLATE, parser=parser
         )
-    
+
     async def get_canonical_names(self, names: list):
-        parser = JsonOutputParser(schema={"type": "array", "items": CanonicalName.model_json_schema()})
-        input = {"names": names, "format_instructions": parser.get_format_instructions()}
+        parser = JsonOutputParser(
+            schema={"type": "array", "items": CanonicalName.model_json_schema()}
+        )
+        input = {
+            "names": names,
+            "format_instructions": parser.get_format_instructions(),
+        }
         return await self._run_llm(
             input=input, template=CANONICAL_NAMES_TEMPLATE, parser=parser
         )
-    
+
     async def answer(self, query: str, context: str):
-        input = {'context': context, 'query': query}
-        return await self._run_llm(
-            input=input, template=ANSWER_TEMPLATE,
-        )
+        input = {"context": context, "query": query}
+        return await self._run_llm(input=input, template=ANSWER_TEMPLATE)
