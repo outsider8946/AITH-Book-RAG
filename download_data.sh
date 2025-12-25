@@ -4,6 +4,7 @@ DATA_DIR="data"
 
 if [! -d "$DATA_DIR" ]; then
     mkdir -p "$DATA_DIR"
+fi
 
 echo "📥 Скачиваем исходные данные..."
 
