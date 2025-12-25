@@ -3,6 +3,7 @@ import json
 from typing import List, Dict, Any
 from pathlib import Path
 from utils.llm import LLMWorker
+from utils.text_extractor import TextExtractor
 from utils.config_loader import config
 from tqdm.asyncio import tqdm_asyncio
 from neo4j import GraphDatabase
@@ -11,12 +12,13 @@ from neo4j import GraphDatabase
 class GrpahLoader:
     def __init__(
         self,
-        path2data: str = "./book_data",
+        path2data: str = "./structed_text",
         path2save: str = "./data/entities_and_relations",
     ):
         self.llm = LLMWorker(config)
         self.path2data = Path(path2data)
         self.path2save = Path(path2save)
+        self.extractor = TextExtractor()
 
     async def _process_extract_nodes_and_edges(self, path2json: Path, chapter: Path):
         chapter_content = chapter.read_text(encoding="utf-8")
@@ -133,3 +135,8 @@ class GrpahLoader:
             driver.execute_query(self.cypher_loader.load("delete_db"), database="neo4j")
             driver.execute_query(query_node, params_node, database="neo4j")
             driver.execute_query(query_edge, params_edge, database="neo4j")
+
+    async def pipeline(self) -> None:
+        self.extractor.extract("./data/monte-cristo.txt")
+        await self.create_graph()
+        self.load2db()
