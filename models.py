@@ -1,10 +1,12 @@
-from typing import List
+from typing import List, Literal
 from pydantic import BaseModel, Field
 
 
 class Entity(BaseModel):
     name: str = Field(description="Название сущности(lowercase)")
-    entity_type: str = Field(description="Тип сущности (lowercase and snake case)")
+    entity_type: Literal["персонаж", "место", "предмет", "организация"] = Field(
+        description="Тип сущности (lowercase and snake case). Строго один из варинатов: 'персонаж', 'место', 'предмет', 'организация'"
+    )
     singular: bool = Field(
         description="Является ли сущность единственной (true) или множественной (false)"
     )
@@ -29,11 +31,17 @@ class EntitiesRelationships(BaseModel):
         description="Список связей между сущностями", default=[]
     )
 
+
 class Query(BaseModel):
-    entity: str = Field(description="Имя персонажа/места так, как они запписаны в вопросе.")
-    relationship: List[str] = Field(description="Глаголы / предикаты, которые относяся к данному персонажу/месту")
+    entity: str = Field(
+        description="Имя персонажа/места так, как они запписаны в вопросе."
+    )
+    relationship: List[str] = Field(
+        description="Глаголы / предикаты, которые относяся к данному персонажу/месту"
+    )
     objects: List[str] = Field(description="Цели действий")
     context_clues: str = Field(description="Полезные уточнения")
+
 
 class CanonicalName(BaseModel):
     canonical_name: str = Field(

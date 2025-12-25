@@ -64,7 +64,6 @@ class RAG:
 
     async def run(self, query: str) -> str:
         query_nodes_and_edges = await self._extract_nodes_and_edges_from_query(query)
-        print(query_nodes_and_edges)
         documents = self._graph_retrieve(query_nodes_and_edges)
         retriver = Neo4jVector.from_documents(
             documents,

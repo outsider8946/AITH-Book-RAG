@@ -1,5 +1,5 @@
 UNWIND $entities AS canon_name
-MATCH (start:person {name: canon_name})
+MATCH (start:персонаж {name: canon_name})
 OPTIONAL MATCH (start)-[r]-(target)
 WITH start, r, target
 WHERE r IS NOT NULL
