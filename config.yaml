@@ -8,4 +8,5 @@ llm:
   type: "mistral"
 
 embeddings:
+  type: "mistral"
   model: "nomic-embed-text"

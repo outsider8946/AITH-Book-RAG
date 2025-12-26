@@ -119,6 +119,7 @@ class Neo4jLoader:
         return query, params
 
     def load2db(self, path2data: str = "./data/entities_and_relations_v2") -> None:
+        """Загружает данные из папки с JSON файлами (старый формат)"""
         nodes = []
         edges = []
         files = [item for item in Path(path2data).iterdir() if item.is_file()]
@@ -136,3 +137,47 @@ class Neo4jLoader:
             driver.execute_query(self.cypher_loader.load("delete_db"), database="neo4j")
             driver.execute_query(query_node, params_node, database="neo4j")
             driver.execute_query(query_edge, params_edge, database="neo4j")
+
+    def load2db_from_json(self) -> None:
+        """Загружает данные напрямую из nodes.json и edges.json (новый формат)"""
+        nodes_path = Path("./data/nodes.json")
+        if not nodes_path.exists():
+            nodes_path = Path("./data/merge_nodes.json")
+            if not nodes_path.exists():
+                raise FileNotFoundError(
+                    f"Файлы nodes.json или merge_nodes.json не найдены. "
+                    f"Запустите download_data.sh для скачивания данных."
+                )
+        
+        edges_path = Path("./data/edges.json")
+        if not edges_path.exists():
+            raise FileNotFoundError(
+                f"Файл {edges_path} не найден. Запустите download_data.sh для скачивания данных."
+            )
+        
+        nodes = json.load(open(nodes_path, encoding="utf-8"))
+        edges = json.load(open(edges_path, encoding="utf-8"))
+
+        query_node, params_node = self._load_nodes(nodes)
+        
+        if edges and len(edges) > 0 and "src_name" in edges[0]:
+            edge_data = edges.copy()
+            for edge in edge_data:
+                rel_type = edge.get("rel_type", "")
+                if rel_type and (
+                    not rel_type.replace("_", "").replace("-", "").replace("`", "").isalnum()
+                    or not rel_type.replace("`", "")[0].isalpha()
+                ):
+                    edge["rel_type"] = f"`{rel_type}`"
+            
+            query = self.cypher_loader.load("load_edges")
+            params_edge = {"edges": edge_data}
+        else:
+            query, params_edge = self._load_edges(edges)
+
+        with GraphDatabase.driver(
+            "neo4j://localhost:7687", auth=("neo4j", "password123")
+        ) as driver:
+            driver.execute_query(self.cypher_loader.load("delete_db"), database="neo4j")
+            driver.execute_query(query_node, params_node, database="neo4j")
+            driver.execute_query(query, params_edge, database="neo4j")
