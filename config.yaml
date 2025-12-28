@@ -8,4 +8,5 @@ llm:
   type: "deepseek"
 
 embeddings:
+  type: "mistral"
   model: "nomic-embed-text"

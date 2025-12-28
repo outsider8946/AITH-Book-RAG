@@ -2,7 +2,7 @@
 
 DATA_DIR="data"
 
-if [! -d "$DATA_DIR" ]; then
+if [ ! -d "$DATA_DIR" ]; then
     mkdir -p "$DATA_DIR"
 fi
 

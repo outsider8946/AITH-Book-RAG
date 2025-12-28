@@ -1,11 +1,12 @@
 import os
 from pydantic import BaseModel
-from typing import Dict, Optional, Type, TypeVar
+from typing import Dict, Optional, Type, TypeVar, List
 from pydantic import SecretStr
 from omegaconf import DictConfig
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_ollama import OllamaEmbeddings
+from langchain_core.embeddings import Embeddings
 from utils.templates import (
     FEATURE_EXTRACT_TEMPLATE,
     CANONICAL_NAMES_TEMPLATE,
@@ -56,12 +57,70 @@ class EmbeddingOllama(OllamaEmbeddings):
         )
 
 
+class EmbeddingMistral(Embeddings):
+    """Mistral embeddings через официальный API"""
+    def __init__(self, config: DictConfig):
+        try:
+            from mistralai import Mistral
+        except ImportError:
+            raise ImportError(
+                "Для использования Mistral embeddings установите: pip install mistralai"
+            )
+        
+        api_key = os.environ.get("MISTRAL_API_KEY") or ""
+        if not api_key:
+            raise ValueError("MISTRAL_API_KEY не установлен в переменных окружения")
+        
+        self.client = Mistral(api_key=api_key)
+        self.model = "mistral-embed"
+    
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """Встраивает список документов (с разбивкой на батчи)"""
+        import time
+        
+        batch_size = 16
+        all_embeddings = []
+        
+        try:
+            for i in range(0, len(texts), batch_size):
+                batch = texts[i:i + batch_size]
+                embeddings_batch_response = self.client.embeddings.create(
+                    model=self.model,
+                    inputs=batch
+                )
+                batch_embeddings = [item.embedding for item in embeddings_batch_response.data]
+                all_embeddings.extend(batch_embeddings)
+                
+                if i + batch_size < len(texts):
+                    time.sleep(0.1)
+            
+            return all_embeddings
+        except Exception as e:
+            raise Exception(f"Ошибка при получении embeddings от Mistral: {e}")
+    
+    def embed_query(self, text: str) -> List[float]:
+        """Встраивает один запрос"""
+        try:
+            embeddings_batch_response = self.client.embeddings.create(
+                model=self.model,
+                inputs=[text]
+            )
+            return embeddings_batch_response.data[0].embedding
+        except Exception as e:
+            raise Exception(f"Ошибка при получении embedding от Mistral: {e}")
+
+
 class LLMWorker:
     def __init__(self, config: DictConfig):
         llm_type = config.llm.type
         llm_map = {"mistral": LLMMistral, "deepseek": LLMDeepSeek}
         self.llm = llm_map.get(llm_type)(config)
-        self.embeddings = EmbeddingOllama(config)
+        
+        embeddings_type = getattr(config.embeddings, "type", None) or llm_type
+        if embeddings_type == "mistral":
+            self.embeddings = EmbeddingMistral(config)
+        else:
+            self.embeddings = EmbeddingOllama(config)
 
         self.history = []
 
