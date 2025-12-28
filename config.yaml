@@ -1,11 +1,11 @@
 llm:
-  deep_seek_model_name: "deepseek-chat"
+  deepseek_model_name: "deepseek-chat"
   mistral_model_name: "mistral-large-latest"
   temperature: 0.5
   top_k: 20
   top_p: 0.95
   repeat_penalty: 1.0
-  type: "mistral"
+  type: "deepseek"
 
 embeddings:
   type: "mistral"

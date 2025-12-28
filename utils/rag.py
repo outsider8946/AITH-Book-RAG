@@ -133,9 +133,7 @@ class RAG:
         ) as driver:
             query = self.cypher_loader.load("retrieve")
             params = {"entities": entities}
-            records, _, _ = driver.execute_query(
-                query, params, database=self.database
-            )
+            records, _, _ = driver.execute_query(query, params, database=self.database)
 
             logger.info(f"Найдено записей в графе: {len(records)}")
 
@@ -229,9 +227,7 @@ class RAG:
                 history_text = "\n".join(
                     [f"{msg['role']}: {msg['content']}" for msg in chat_history[-5:]]
                 )
-                context = (
-                    f"{context}\n\nПредыдущий контекст разговора:\n{history_text}"
-                )
+                context = f"{context}\n\nПредыдущий контекст разговора:\n{history_text}"
 
             answer = await self.llm.answer(query=query, context=context)
             return {
@@ -266,9 +262,7 @@ class RAG:
             history_text = "\n".join(
                 [f"{msg['role']}: {msg['content']}" for msg in chat_history[-5:]]
             )
-            context = (
-                f"Предыдущий контекст разговора:\n{history_text}\n\nАктуальный контекст:\n{context}"
-            )
+            context = f"Предыдущий контекст разговора:\n{history_text}\n\nАктуальный контекст:\n{context}"
 
         answer = await self.llm.answer(query=query, context=context)
 
