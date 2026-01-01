@@ -1,6 +1,6 @@
 UNWIND $entities AS canon_name
 MATCH (start {name: canon_name})
-WHERE start:персонаж OR start:person OR start:место OR start:place
+WHERE start:персонаж OR start:место
 OPTIONAL MATCH (start)-[r]-(target)
 WITH start, r, target
 WHERE r IS NOT NULL

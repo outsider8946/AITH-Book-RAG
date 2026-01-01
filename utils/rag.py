@@ -52,15 +52,9 @@ class RAG:
         if not self._names_map:
             return re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9]", "_", entity).strip("_")
 
-        entity_lower = entity.lower()
-
         for key, value in self._names_map.items():
-            if isinstance(value, list):
-                if entity_lower in [v.lower() for v in value]:
-                    return re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9]", "_", key).strip("_")
-            elif isinstance(value, str):
-                if entity_lower in value.lower():
-                    return re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9]", "_", key).strip("_")
+            if entity.lower() in value:
+                return re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9]", "_", key).strip("_")
 
         return re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9]", "_", entity).strip("_")
 
@@ -71,7 +65,7 @@ class RAG:
                 self.neo4j_url, auth=(self.neo4j_user, self.neo4j_password)
             ) as driver:
                 records, _, _ = driver.execute_query(
-                    "MATCH (n) WHERE n:person OR n:персонаж OR n:место OR n:place RETURN count(n) as count LIMIT 1",
+                    "MATCH (n) WHERE n:персонаж OR n:место RETURN count(n) as count LIMIT 1",
                     database=self.database,
                 )
                 node_count = records[0]["count"] if records else 0
@@ -181,7 +175,8 @@ class RAG:
                 "answer": str,
                 "graph_metadata": List[Dict],
                 "entities_found": List[str],
-                "context_used": List[str]
+                "context_used": List[str],
+                "llm_context": List[str]
             }
         """
         graph_available = self._check_graph_available()
@@ -214,6 +209,7 @@ class RAG:
                 "graph_metadata": [],
                 "entities_found": [],
                 "context_used": [],
+                "llm_context": [],
             }
 
         query_nodes_and_edges = await self._extract_nodes_and_edges_from_query(query)
@@ -235,6 +231,7 @@ class RAG:
                 "graph_metadata": [],
                 "entities_found": entities_found,
                 "context_used": [],
+                "llm_context": [],
             }
 
         vectorstore = Neo4jVector.from_documents(
@@ -271,6 +268,7 @@ class RAG:
             "graph_metadata": graph_metadata,
             "entities_found": entities_found,
             "context_used": [doc.page_content for doc in extracted_documents],
+            "llm_context": context,
         }
 
     async def answer(

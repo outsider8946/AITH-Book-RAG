@@ -20,5 +20,8 @@ gdown "https://drive.google.com/file/d/1Ne1WMZ-OVGD3SkNQ1sN9uT-gN4x5Z1sX/view?us
 echo "📄 names_map.json"
 gdown "https://drive.google.com/file/d/1UEqlZDoC6Yc6gMULb8WIrUa1MvT2PQ4-/view?usp=sharing" -O "$DATA_DIR/names_map.json" --fuzzy
 
+ehco "📄 chapter_summaries.json"
+gdown "https://drive.google.com/file/d/1bdIwdNfrk0TCFsKtYC0I-4yf3pTAHA_D/view?usp=sharing" -O "$DATA_DIR/chapter_summaries.json" --fuzzy
+
 
 echo "✅ Данные готовы"
