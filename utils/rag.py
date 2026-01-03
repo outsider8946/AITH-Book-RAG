@@ -8,7 +8,6 @@ from neo4j import GraphDatabase
 from utils.cypher_loader import CypherLoader
 from utils.llm import LLMWorker
 from langchain_core.documents import Document
-from langchain_community.vectorstores import Neo4jVector
 from langchain_core.prompts import ChatPromptTemplate
 
 logger = logging.getLogger(__name__)
@@ -22,6 +21,7 @@ class RAG:
         neo4j_password: str = "password123",
         database: str = "neo4j",
     ):
+        self.reg_expression = r"[^a-zA-Zа-яА-ЯёЁ0-9]"
         self.llm = LLMWorker(config)
         self.cypher_loader = CypherLoader()
         self.neo4j_url = neo4j_url
@@ -30,14 +30,15 @@ class RAG:
         self.database = database
         self._names_map = None
         self._load_names_map()
+        self._load_chapter_map()
 
     def _load_names_map(self):
         """Загружает карту имен из файла"""
+
         names_map_path = Path("./data/names_map.json")
         if names_map_path.exists():
             try:
-                with open(names_map_path, "r", encoding="utf-8") as f:
-                    self._names_map = json.load(f)
+                self._names_map = json.loads(names_map_path.read_text(encoding="utf-8"))
             except Exception as e:
                 logger.warning(f"Не удалось загрузить names_map.json: {e}")
                 self._names_map = {}
@@ -47,16 +48,32 @@ class RAG:
             )
             self._names_map = {}
 
+    def _load_chapter_map(self):
+        chaper_map_path = Path("./data/chapters_map.json")
+        if chaper_map_path.exists():
+            try:
+                self._chapter_map = json.loads(
+                    chaper_map_path.read_text(encoding="utf-8")
+                )
+            except Exception as e:
+                logger.warning(f"Не удалось загрузить chapter_map.json: {e}")
+                self._chapter_map = {}
+        else:
+            logger.warning(
+                "Файл names_map.json не найден. Работаем без канонизации имен."
+            )
+            self._chapter_map = {}
+
     def _canonicalize_entity(self, entity: str) -> str:
         """Преобразует имя сущности в каноническую форму"""
         if not self._names_map:
-            return re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9]", "_", entity).strip("_")
+            return re.sub(self.reg_expression, "_", entity).strip("_")
 
         for key, value in self._names_map.items():
             if entity.lower() in value:
-                return re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9]", "_", key).strip("_")
+                return re.sub(self.reg_expression, "_", key).strip("_")
 
-        return re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9]", "_", entity).strip("_")
+        return re.sub(self.reg_expression, "_", entity).strip("_")
 
     def _check_graph_available(self) -> bool:
         """Проверяет, доступен ли граф и содержит ли он данные с правильными метками"""
@@ -83,10 +100,12 @@ class RAG:
         self, query: str
     ) -> Dict[str, List[Any]]:
         """Извлекает сущности и связи из запроса с использованием LLM"""
+
         json_query = await self.llm.get_struct_from_query(query)
-        logger.debug(f"LLM вернул структуру: {json_query}")
+        logger.info(f"LLM вернул структуру: {json_query}")
 
         entities = []
+        edges = []
 
         if isinstance(json_query, list):
             for query_obj in json_query:
@@ -94,14 +113,25 @@ class RAG:
                     entity = query_obj.get("entity", "")
                     if entity:
                         entities.append(entity)
+
+                    edge = query_obj.get("relationship", "")
+                    if edge:
+                        edges.append(edge)
+
                 elif hasattr(query_obj, "entity"):
                     if query_obj.entity:
                         entities.append(query_obj.entity)
+                elif hasattr(query_obj, "relationship"):
+                    if query_obj.relationship:
+                        edges.append(query_obj.relationship)
         elif isinstance(json_query, dict):
             if "entities" in json_query:
                 entities = json_query.get("entities", [])
             elif "entity" in json_query:
                 entities = [json_query["entity"]] if json_query["entity"] else []
+
+            if "relationship" in json_query:
+                edges = json_query["relationship"] if json_query["relationship"] else []
 
         logger.info(f"Извлечено сущностей из запроса: {entities}")
 
@@ -110,23 +140,31 @@ class RAG:
         ]
         logger.info(f"Канонизированные сущности: {clear_entities}")
 
-        return {"entities": clear_entities}
+        return {"entities": clear_entities, "relationship": edges}
 
     def _graph_retrieve(
-        self, json_query: Dict[str, List[Any]]
+        self, query: str, json_query: Dict[str, List[Any]]
     ) -> Tuple[List[Document], List[Dict[str, Any]]]:
         """
         Извлекает документы из графа Neo4j на основе сущностей.
         Возвращает кортеж: (документы, метаданные о найденных связях)
         """
         entities = json_query.get("entities", [])
+        rels = json_query.get("relationship", [])
+        logger.info(f"Получено связей: {len(rels)}")
+        edge_embeddings = self.llm.embeddings.embed_documents(rels)
+        query_embedding = self.llm.embeddings.embed_query(query)
         logger.info(f"Поиск в графе для сущностей: {entities}")
 
         with GraphDatabase.driver(
             self.neo4j_url, auth=(self.neo4j_user, self.neo4j_password)
         ) as driver:
             query = self.cypher_loader.load("retrieve")
-            params = {"entities": entities}
+            params = {
+                "entities": entities,
+                "edge_embeddings": edge_embeddings,
+                "query_embedding": query_embedding,
+            }
             records, _, _ = driver.execute_query(query, params, database=self.database)
 
             logger.info(f"Найдено записей в графе: {len(records)}")
@@ -157,6 +195,17 @@ class RAG:
                 )
 
             return documents, graph_metadata
+
+    def _get_context(self, documents: List[Document]) -> str:
+        """Формирование контекста для ответа на запрос пользователя"""
+
+        context = ""
+
+        for i, doc in enumerate(documents):
+            context += "-" * 40
+            context += f"\n{i + 1}. {doc.page_content}"
+
+        return context
 
     async def run(
         self, query: str, chat_history: Optional[List[Dict[str, str]]] = None
@@ -215,7 +264,9 @@ class RAG:
         query_nodes_and_edges = await self._extract_nodes_and_edges_from_query(query)
         entities_found = query_nodes_and_edges.get("entities", [])
 
-        documents, graph_metadata = self._graph_retrieve(query_nodes_and_edges)
+        documents, graph_metadata = self._graph_retrieve(
+            query=query, json_query=query_nodes_and_edges
+        )
 
         if not documents:
             context = "В базе знаний не найдено информации по данному вопросу."
@@ -234,26 +285,7 @@ class RAG:
                 "llm_context": [],
             }
 
-        vectorstore = Neo4jVector.from_documents(
-            documents,
-            self.llm.embeddings,
-            url=self.neo4j_url,
-            username=self.neo4j_user,
-            password=self.neo4j_password,
-            database=self.database,
-        )
-
-        retriever = vectorstore.as_retriever(k=3, search_type="similarity")
-        extracted_documents = retriever.invoke(query)
-
-        context_parts = []
-        for doc in extracted_documents:
-            context_parts.append(
-                f"Действующее лицо: {doc.metadata.get('source', 'Неизвестно')}\n"
-                f"Содержание: {doc.page_content}"
-            )
-
-        context = "\n\n".join(context_parts)
+        context = self._get_context(documents)
 
         if chat_history:
             history_text = "\n".join(
@@ -267,8 +299,7 @@ class RAG:
             "answer": answer.content,
             "graph_metadata": graph_metadata,
             "entities_found": entities_found,
-            "context_used": [doc.page_content for doc in extracted_documents],
-            "llm_context": context,
+            "context_used": [doc.page_content for doc in documents],
         }
 
     async def answer(

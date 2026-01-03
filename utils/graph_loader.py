@@ -17,6 +17,7 @@ class GrpahLoader:
         path2kg: str = "./data/entities_and_relations",
         path2summary: str = "./data/chapter_sumamries.json",
     ):
+        self.reg_expression = r"[^a-zA-Zа-яА-ЯёЁ0-9]"
         self.llm = LLMWorker(config)
         self.path2data = Path(path2data)
         self.path2kg = Path(path2kg)
@@ -24,7 +25,11 @@ class GrpahLoader:
         self.extractor = TextExtractor()
         self.cypher_loader = CypherLoader()
 
-    async def _process_extract_nodes_and_edges(self, path2json: Path, chapter: Path):
+    async def _process_extract_nodes_and_edges(
+        self, path2json: Path, chapter: Path
+    ) -> None:
+        """Вспомогательная функция для извлчение вершин и связей"""
+
         chapter_content = chapter.read_text(encoding="utf-8")
         entities_and_realations = await self.llm.get_entities_and_relations(
             chapter_content
@@ -39,13 +44,19 @@ class GrpahLoader:
             json.dumps(json_data, indent=4, ensure_ascii=False), encoding="utf-8"
         )
 
-    async def _process_summary_chapters(self, chapter: Path, name: str):
+    async def _process_summary_chapters(
+        self, chapter: Path, name: str
+    ) -> Dict[str, str]:
+        """Вспомогательная функция  для суммаризации главы"""
+
         chapter_content = chapter.read_text(encoding="utf-8")
         chapter_name = name.split("_")[0]
         chapter_summary = await self.llm.get_chapter_summary(chapter_content)
         return {chapter_name: chapter_summary}
 
-    async def _extract_nodes_and_realtions(self):
+    async def _extract_nodes_and_realtions(self) -> None:
+        """Извлечение вершин и связей из текста"""
+
         tasks_extract = []
         tasks_summary = []
         self.path2kg.mkdir(exist_ok=True)
@@ -81,6 +92,8 @@ class GrpahLoader:
                 f.write(json.dumps(summary_result, indent=4, ensure_ascii=False))
 
     def _canonical_nodes(self, nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Дедупликация вершин"""
+
         self.names_map = {}  # key - non-canonical name, value - canonical name
         names_map = json.load(open("data/names_map.json"))
         unique_nodes = []
@@ -96,10 +109,12 @@ class GrpahLoader:
         return unique_nodes
 
     def _merge_nodes(self, nodes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Слияние вершин после дедупликации"""
+
         nodes_dict = {}
         for node in nodes:
             node["name"] = (
-                re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9]", "_", node["name"])
+                re.sub(self.reg_expression, "_", node["name"])
                 .replace("__", "_")
                 .strip("_")
             )
@@ -117,6 +132,8 @@ class GrpahLoader:
         return merge_nodes
 
     def _normalize_edges(self, edges: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        """Приведение связей к общему виду"""
+
         for edge in edges:
             rel_type = edge["relationship_type"]
             if (
@@ -127,7 +144,7 @@ class GrpahLoader:
 
             edge["entity_1"] = (
                 re.sub(
-                    r"[^a-zA-Zа-яА-ЯёЁ0-9]",
+                    self.reg_expression,
                     "_",
                     self.names_map.get(edge["entity_1"], edge["entity_1"]),
                 )
@@ -136,7 +153,7 @@ class GrpahLoader:
             )
             edge["entity_2"] = (
                 re.sub(
-                    r"[^a-zA-Zа-яА-ЯёЁ0-9]",
+                    self.reg_expression,
                     "_",
                     self.names_map.get(edge["entity_2"], edge["entity_2"]),
                 )
@@ -146,7 +163,9 @@ class GrpahLoader:
 
         return edges
 
-    async def create_graph(self):
+    async def create_graph(self) -> None:
+        """Создание графа знаний из текста"""
+
         await self._extract_nodes_and_realtions()
         nodes = []
         edges = []
@@ -170,12 +189,14 @@ class GrpahLoader:
     def _load_nodes(
         self, nodes: List[Dict[str, Any]]
     ) -> Tuple[str, Dict[str, List[Dict[str, Any]]]]:
+        """Формирование вершин для загрузки в граф знаний"""
+
         nodes = self._canonical_nodes(nodes)
         nodes = self._merge_nodes(nodes)
 
         node_data = []
         for node in nodes:
-            clean_name = re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9]", "_", node["name"]).strip("_")
+            clean_name = re.sub(self.reg_expression, "_", node["name"]).strip("_")
             node_data.append(
                 {
                     "label": node["entity_type"],
@@ -195,6 +216,8 @@ class GrpahLoader:
     def _load_edges(
         self, edges: List[Dict[str, str]]
     ) -> Tuple[str, Dict[str, List[Dict[str, str]]]]:
+        """Формирование связей для загрузки в граф знаний"""
+
         if not edges:
             return "", {}
 
@@ -208,12 +231,12 @@ class GrpahLoader:
                 rel_type = f"`{rel_type}`"
 
             src_name = re.sub(
-                r"[^a-zA-Zа-яА-ЯёЁ0-9]",
+                self.reg_expression,
                 "_",
                 self.names_map.get(edge["entity_1"], edge["entity_1"]),
             ).strip("_")
             tgt_name = re.sub(
-                r"[^a-zA-Zа-яА-ЯёЁ0-9]",
+                self.reg_expression,
                 "_",
                 self.names_map.get(edge["entity_2"], edge["entity_2"]),
             ).strip("_")
@@ -223,7 +246,8 @@ class GrpahLoader:
                     "tgt_name": tgt_name,
                     "rel_type": rel_type,
                     "description": edge.get("description", ""),
-                    "chapter": edge.get("chapter", ""),
+                    "rel_embedding": edge.get("rel_embedding", []),
+                    "desc_embedding": edge.get("desc_embedding", []),
                 }
             )
 
@@ -233,6 +257,7 @@ class GrpahLoader:
         return query, params
 
     def load2db(self) -> None:
+        """Загрузка графа знаний"""
         nodes = json.load(open("./data/nodes.json"))
         edges = json.load(open("./data/edges.json"))
 
@@ -247,6 +272,8 @@ class GrpahLoader:
             driver.execute_query(query_edge, params_edge, database="neo4j")
 
     async def pipeline(self) -> None:
+        """Полный пайплайн по созданию графа знаний"""
+
         self.extractor.extract("./data/monte-cristo.txt")
         await self.create_graph()
         self.load2db()

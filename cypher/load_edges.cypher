@@ -5,9 +5,9 @@ CALL apoc.merge.relationship(
     a, 
     edge.rel_type, 
     {},
-    {description: edge.description, chapter: edge.chapter},
+    {description: edge.description, rel_embedding: edge.rel_embedding, desc_embedding: edge.desc_embedding},
     b,
-    {description: edge.description, chapter: edge.chapter}
+    {description: edge.description, rel_embedding: edge.rel_embedding, desc_embedding: edge.desc_embedding}
 )
 YIELD rel
 RETURN count(rel) AS created
