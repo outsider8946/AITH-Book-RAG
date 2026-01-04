@@ -8,5 +8,5 @@ llm:
   type: "deepseek"
 
 embeddings:
+  ollama_model_name: "nomic-embed-text"
   type: "ollama"
-  model: "nomic-embed-text"

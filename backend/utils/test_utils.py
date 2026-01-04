@@ -9,11 +9,11 @@ from ragas.metrics import (
 )
 from ragas import evaluate
 from openai import OpenAI
-from utils.config_loader import config
+from ..utils.config_loader import config
 from ragas.llms import llm_factory
 from datasets import Dataset
 from tqdm.asyncio import tqdm_asyncio
-from utils.rag import RAG
+from ..utils.rag import RAG
 from dotenv import load_dotenv
 
 load_dotenv()

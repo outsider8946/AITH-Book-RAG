@@ -3,12 +3,12 @@ import json
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
-from utils.config_loader import config
+from ..utils.config_loader import config
+from ..utils.graph_loader import GrpahLoader
 from neo4j import GraphDatabase
-from utils.cypher_loader import CypherLoader
-from utils.llm import LLMWorker
+from ..utils.cypher_loader import CypherLoader
+from ..utils.llm import LLMWorker
 from langchain_core.documents import Document
-from langchain_core.prompts import ChatPromptTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class RAG:
     def __init__(
         self,
-        neo4j_url: str = "neo4j://localhost:7687",
+        neo4j_url: str = "bolt://neo4j-db:7687",
         neo4j_user: str = "neo4j",
         neo4j_password: str = "password123",
         database: str = "neo4j",
@@ -30,12 +30,12 @@ class RAG:
         self.database = database
         self._names_map = None
         self._load_names_map()
-        self._load_chapter_map()
+        GrpahLoader().load2db()
 
     def _load_names_map(self):
         """Загружает карту имен из файла"""
 
-        names_map_path = Path("./data/names_map.json")
+        names_map_path = Path("./graph_rag/data/names_map.json")
         if names_map_path.exists():
             try:
                 self._names_map = json.loads(names_map_path.read_text(encoding="utf-8"))
@@ -48,22 +48,6 @@ class RAG:
             )
             self._names_map = {}
 
-    def _load_chapter_map(self):
-        chaper_map_path = Path("./data/chapters_map.json")
-        if chaper_map_path.exists():
-            try:
-                self._chapter_map = json.loads(
-                    chaper_map_path.read_text(encoding="utf-8")
-                )
-            except Exception as e:
-                logger.warning(f"Не удалось загрузить chapter_map.json: {e}")
-                self._chapter_map = {}
-        else:
-            logger.warning(
-                "Файл names_map.json не найден. Работаем без канонизации имен."
-            )
-            self._chapter_map = {}
-
     def _canonicalize_entity(self, entity: str) -> str:
         """Преобразует имя сущности в каноническую форму"""
         if not self._names_map:
@@ -73,8 +57,6 @@ class RAG:
             if entity.lower() in value:
                 return re.sub(self.reg_expression, "_", key).strip("_")
 
-        return re.sub(self.reg_expression, "_", entity).strip("_")
-
     def _check_graph_available(self) -> bool:
         """Проверяет, доступен ли граф и содержит ли он данные с правильными метками"""
         try:
@@ -82,8 +64,7 @@ class RAG:
                 self.neo4j_url, auth=(self.neo4j_user, self.neo4j_password)
             ) as driver:
                 records, _, _ = driver.execute_query(
-                    "MATCH (n) WHERE n:персонаж OR n:место RETURN count(n) as count LIMIT 1",
-                    database=self.database,
+                    self.cypher_loader.load("check"), database=self.database
                 )
                 node_count = records[0]["count"] if records else 0
                 has_data = node_count > 0
@@ -104,34 +85,8 @@ class RAG:
         json_query = await self.llm.get_struct_from_query(query)
         logger.info(f"LLM вернул структуру: {json_query}")
 
-        entities = []
-        edges = []
-
-        if isinstance(json_query, list):
-            for query_obj in json_query:
-                if isinstance(query_obj, dict):
-                    entity = query_obj.get("entity", "")
-                    if entity:
-                        entities.append(entity)
-
-                    edge = query_obj.get("relationship", "")
-                    if edge:
-                        edges.append(edge)
-
-                elif hasattr(query_obj, "entity"):
-                    if query_obj.entity:
-                        entities.append(query_obj.entity)
-                elif hasattr(query_obj, "relationship"):
-                    if query_obj.relationship:
-                        edges.append(query_obj.relationship)
-        elif isinstance(json_query, dict):
-            if "entities" in json_query:
-                entities = json_query.get("entities", [])
-            elif "entity" in json_query:
-                entities = [json_query["entity"]] if json_query["entity"] else []
-
-            if "relationship" in json_query:
-                edges = json_query["relationship"] if json_query["relationship"] else []
+        entities = json_query.get("entities", [])
+        rels = json_query.get("relationship", [])
 
         logger.info(f"Извлечено сущностей из запроса: {entities}")
 
@@ -140,7 +95,7 @@ class RAG:
         ]
         logger.info(f"Канонизированные сущности: {clear_entities}")
 
-        return {"entities": clear_entities, "relationship": edges}
+        return {"entities": clear_entities, "relationship": rels}
 
     def _graph_retrieve(
         self, query: str, json_query: Dict[str, List[Any]]
@@ -228,38 +183,9 @@ class RAG:
                 "llm_context": List[str]
             }
         """
-        graph_available = self._check_graph_available()
 
-        if not graph_available:
-            logger.info("Граф недоступен. Работаем в режиме LLM диалога.")
-
-            system_message = (
-                "Вы - помощник по роману 'Граф Монте-Кристо' Александра Дюма. "
-                "Отвечайте на вопросы о романе на основе ваших знаний."
-            )
-
-            messages = [("system", system_message)]
-
-            if chat_history:
-                for msg in chat_history[-10:]:
-                    role = "human" if msg["role"] == "user" else "ai"
-                    messages.append((role, msg["content"]))
-
-            messages.append(("human", query))
-
-            prompt = ChatPromptTemplate.from_messages(messages)
-            chain = prompt | self.llm.llm
-            response = await chain.ainvoke({})
-
-            return {
-                "answer": response.content
-                if hasattr(response, "content")
-                else str(response),
-                "graph_metadata": [],
-                "entities_found": [],
-                "context_used": [],
-                "llm_context": [],
-            }
+        if not self._check_graph_available():
+            raise RuntimeError("Граф недоступен!")
 
         query_nodes_and_edges = await self._extract_nodes_and_edges_from_query(query)
         entities_found = query_nodes_and_edges.get("entities", [])
@@ -278,7 +204,7 @@ class RAG:
 
             answer = await self.llm.answer(query=query, context=context)
             return {
-                "answer": answer.content,
+                "answer": answer,
                 "graph_metadata": [],
                 "entities_found": entities_found,
                 "context_used": [],
@@ -296,7 +222,7 @@ class RAG:
         answer = await self.llm.answer(query=query, context=context)
 
         return {
-            "answer": answer.content,
+            "answer": answer,
             "graph_metadata": graph_metadata,
             "entities_found": entities_found,
             "context_used": [doc.page_content for doc in documents],
