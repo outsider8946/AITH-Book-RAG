@@ -8,30 +8,15 @@ import logging
 
 class Downloader:
     logger = logging.getLogger(__name__)
-    ollama_url = os.environ.get("OLLAMA_URL") or "http://ollama:11434"
-    embedding_model = "nomic-embed-text"
-    path2data = Path("./data")
+    ollama_url = os.environ.get("OLLAMA_URL", "http://ollama:11434")
+    embedding_model = os.environ.get("EMBEDDING_MODEL", "nomic-embed-text")
+    print()
+    path2data = Path("./backend/data")
     data = [
-        (
-            "🗂️ RAW text",
-            "https://drive.google.com/file/d/18z25ebWwHVF4SqXmpyXgYclYedlkMu18/view?usp=sharing",
-            "monte-cristo.txt",
-        ),
-        (
-            "📄 nodes.json",
-            "https://drive.google.com/file/d/1wEV0DwVmEE87YP6pByyQ1cKbB5a42vBG/view?usp=sharing",
-            "nodes.json",
-        ),
-        (
-            "📄 edges.json",
-            "https://drive.google.com/file/d/1Ne1WMZ-OVGD3SkNQ1sN9uT-gN4x5Z1sX/view?usp=sharing",
-            "edges.json",
-        ),
-        (
-            "📄 names_map.json",
-            "https://drive.google.com/file/d/1UEqlZDoC6Yc6gMULb8WIrUa1MvT2PQ4-/view?usp=sharing-/view?usp=sharing",
-            "names_map.json",
-        ),
+        ("🗂️ RAW text", os.environ.get("RAW_TEXT_LINK", ""), "monte-cristo.txt"),
+        ("📄 nodes.json", os.environ.get("NODES_LINK", ""), "nodes.json"),
+        ("📄 edges.json", os.environ.get("EDGES_LINK", ""), "edges.json"),
+        ("📄 names_map.json", os.environ.get("NAMES_MAP_LINK", ""), "names_map.json"),
     ]
 
     async def download_ollama_model(self):
@@ -96,6 +81,10 @@ class Downloader:
         for description, url, filename in self.data:
             destination = self.path2data / filename
             self.logger.info(description)
+
+            if destination.exists():
+                self.logger.info(f"✅ Файл {filename} уже существует")
+                continue
 
             try:
                 gdown.download(url, str(destination), fuzzy=True, quiet=False)

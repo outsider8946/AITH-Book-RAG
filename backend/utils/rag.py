@@ -1,13 +1,14 @@
 import re
+import os
 import json
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 from pathlib import Path
-from ..utils.config_loader import config
-from ..utils.graph_loader import GrpahLoader
+from backend.utils.config_loader import config
+from backend.utils.graph_loader import GrpahLoader
 from neo4j import GraphDatabase
-from ..utils.cypher_loader import CypherLoader
-from ..utils.llm import LLMWorker
+from backend.utils.cypher_loader import CypherLoader
+from backend.utils.llm import LLMWorker
 from langchain_core.documents import Document
 
 logger = logging.getLogger(__name__)
@@ -16,16 +17,16 @@ logger = logging.getLogger(__name__)
 class RAG:
     def __init__(
         self,
-        neo4j_url: str = "bolt://neo4j-db:7687",
-        neo4j_user: str = "neo4j",
-        neo4j_password: str = "password123",
+        neo4j_uri: str = os.environ.get("NEO4J_URI", "bolt://neo4j-db:7687"),
+        neo4j_username: str = os.environ.get("NEO4J_USERNAME", "neo4j"),
+        neo4j_password: str = os.environ.get("NEO4J_PASSWORD", "password123"),
         database: str = "neo4j",
     ):
         self.reg_expression = r"[^a-zA-Zа-яА-ЯёЁ0-9]"
         self.llm = LLMWorker(config)
         self.cypher_loader = CypherLoader()
-        self.neo4j_url = neo4j_url
-        self.neo4j_user = neo4j_user
+        self.neo4j_uri = neo4j_uri
+        self.neo4j_username = neo4j_username
         self.neo4j_password = neo4j_password
         self.database = database
         self._names_map = None
@@ -35,7 +36,7 @@ class RAG:
     def _load_names_map(self):
         """Загружает карту имен из файла"""
 
-        names_map_path = Path("./graph_rag/data/names_map.json")
+        names_map_path = Path("./backend/data/names_map.json")
         if names_map_path.exists():
             try:
                 self._names_map = json.loads(names_map_path.read_text(encoding="utf-8"))
@@ -61,7 +62,7 @@ class RAG:
         """Проверяет, доступен ли граф и содержит ли он данные с правильными метками"""
         try:
             with GraphDatabase.driver(
-                self.neo4j_url, auth=(self.neo4j_user, self.neo4j_password)
+                self.neo4j_uri, auth=(self.neo4j_username, self.neo4j_password)
             ) as driver:
                 records, _, _ = driver.execute_query(
                     self.cypher_loader.load("check"), database=self.database
@@ -112,7 +113,7 @@ class RAG:
         logger.info(f"Поиск в графе для сущностей: {entities}")
 
         with GraphDatabase.driver(
-            self.neo4j_url, auth=(self.neo4j_user, self.neo4j_password)
+            self.neo4j_uri, auth=(self.neo4j_username, self.neo4j_password)
         ) as driver:
             query = self.cypher_loader.load("retrieve")
             params = {

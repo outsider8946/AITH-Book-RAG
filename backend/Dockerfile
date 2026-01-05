@@ -2,23 +2,28 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Copy from project root (context is project root)
+COPY pyproject.toml poetry.lock ./
+
 # Install poetry
 RUN pip install poetry
 
-# Copy poetry configuration
-COPY pyproject.toml poetry.lock ./
-
-# Configure poetry to not create a virtual environment
+# Configure poetry
 RUN poetry config virtualenvs.create false
 
 # Install dependencies
 RUN poetry install --no-interaction --no-ansi --no-root
 
-# Copy the application code
-COPY . .
+# Copy backend code
+COPY backend/ ./
 
-# Expose the port
-EXPOSE 8000
+# Create __init__.py files
+RUN touch __init__.py && \
+    mkdir -p utils && \
+    touch utils/__init__.py
 
-# Run the application
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Set PYTHONPATH
+ENV PYTHONPATH=/app
+
+# Run
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "n"]

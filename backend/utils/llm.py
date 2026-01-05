@@ -5,7 +5,7 @@ from omegaconf import DictConfig
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_ollama import OllamaEmbeddings
-from ..utils.templates import (
+from backend.utils.templates import (
     FEATURE_EXTRACT_TEMPLATE,
     CANONICAL_NAMES_TEMPLATE,
     ANSWER_TEMPLATE,
@@ -16,7 +16,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers.pydantic import PydanticOutputParser
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from ..utils.models import EntitiesRelationships, CanonicalName, Query
+from backend.utils.models import EntitiesRelationships, CanonicalName, Query
 
 load_dotenv()
 
@@ -25,7 +25,7 @@ class LLMDeepSeek(ChatOpenAI):
     def __init__(self, config: DictConfig):
         super().__init__(
             base_url="https://api.deepseek.com",
-            api_key=SecretStr(os.environ.get("DEEPSEEK_API_KEY") or ""),
+            api_key=SecretStr(os.environ.get("DEEPSEEK_API_KEY", "")),
             model=config.llm.deepseek_model_name,
             temperature=config.llm.temperature,
             top_p=config.llm.top_p,
@@ -39,7 +39,7 @@ class LLMMistral(ChatOpenAI):
     def __init__(self, config: DictConfig):
         super().__init__(
             base_url="https://api.mistral.ai/v1",
-            api_key=SecretStr(os.environ.get("MISTRAL_API_KEY") or ""),
+            api_key=SecretStr(os.environ.get("MISTRAL_API_KEY", "")),
             model=config.llm.mistral_model_name,
             temperature=config.llm.temperature,
             top_p=config.llm.top_p,
@@ -50,7 +50,8 @@ class LLMMistral(ChatOpenAI):
 class EmbeddingOllama(OllamaEmbeddings):
     def __init__(self, config: DictConfig):
         super().__init__(
-            base_url="http://ollama:11434", model=config.embeddings.ollama_model_name
+            base_url=os.environ.get("OLLAMA_URL", "http://localhost:11434"),
+            model=config.embeddings.ollama_model_name,
         )
 
 

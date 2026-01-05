@@ -7,7 +7,7 @@ volumes:
   neo4j_logs:
   neo4j_import:
   neo4j_plugins:
-  ollama_modelsYf he:
+  ollama_models:
 
 services:
   backend:
@@ -23,6 +23,11 @@ services:
       - NEO4J_USERNAME=neo4j
       - NEO4J_PASSWORD=password123
       - OLLAMA_URL=http://ollama:11434
+      - EMBEDDING_MODEL=nomic-embed-text
+      - RAW_TEXT_LINK=https://drive.google.com/file/d/18z25ebWwHVF4SqXmpyXgYclYedlkMu18/view?usp=sharing
+      - NODES_LINK=https://drive.google.com/file/d/1wEV0DwVmEE87YP6pByyQ1cKbB5a42vBG/view?usp=sharing
+      - EDGES_LINK=https://drive.google.com/file/d/1Ne1WMZ-OVGD3SkNQ1sN9uT-gN4x5Z1sX/view?usp=sharing
+      - NAMES_MAP_LINK=https://drive.google.com/file/d/1UEqlZDoC6Yc6gMULb8WIrUa1MvT2PQ4-/view?usp=sharing-/view?usp=sharing
     volumes:
       - .:/app
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000

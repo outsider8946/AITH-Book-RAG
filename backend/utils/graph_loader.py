@@ -1,11 +1,12 @@
 import re
+import os
 import json
 from typing import List, Dict, Any, Tuple
 from pathlib import Path
-from ..utils.llm import LLMWorker
-from ..utils.cypher_loader import CypherLoader
-from ..utils.text_extractor import TextExtractor
-from ..utils.config_loader import config
+from backend.utils.llm import LLMWorker
+from backend.utils.cypher_loader import CypherLoader
+from backend.utils.text_extractor import TextExtractor
+from backend.utils.config_loader import config
 from tqdm.asyncio import tqdm_asyncio
 from neo4j import GraphDatabase
 
@@ -13,9 +14,9 @@ from neo4j import GraphDatabase
 class GrpahLoader:
     def __init__(
         self,
-        path2data: str = "./graph_rag/data/structed_text",
-        path2kg: str = "./graph_rag/data/entities_and_relations",
-        path2summary: str = "./graph_rag/data/chapter_sumamries.json",
+        path2data: str = "./data/structed_text",
+        path2kg: str = "./data/entities_and_relations",
+        path2summary: str = "./data/chapter_sumamries.json",
     ):
         self.reg_expression = r"[^a-zA-Zа-яА-ЯёЁ0-9]"
         self.llm = LLMWorker(config)
@@ -24,6 +25,10 @@ class GrpahLoader:
         self.path2summary = Path(path2summary)
         self.extractor = TextExtractor()
         self.cypher_loader = CypherLoader()
+
+        self.neo4j_uri: str = os.environ.get("NEO4J_URI", "bolt://neo4j-db:7687")
+        self.neo4j_username: str = os.environ.get("NEO4J_USERNAME", "neo4j")
+        self.neo4j_password: str = os.environ.get("NEO4J_PASSWORD", "password123")
 
     async def _process_extract_nodes_and_edges(
         self, path2json: Path, chapter: Path
@@ -95,7 +100,7 @@ class GrpahLoader:
         """Дедупликация вершин"""
 
         self.names_map = {}  # key - non-canonical name, value - canonical name
-        names_map = json.load(open("graph_rag/data/names_map.json"))
+        names_map = json.load(open("./data/names_map.json"))
         unique_nodes = []
         for node in nodes:
             if node["entity_type"] in {"персонаж", "person", "персона"}:
@@ -180,10 +185,10 @@ class GrpahLoader:
 
         edges = self._normalize_edges(edges)
 
-        with open("./graph_rag/data/nodes.json", "w", encoding="utf-8") as f:
+        with open("./data/nodes.json", "w", encoding="utf-8") as f:
             f.write(json.dumps(nodes, indent=4, ensure_ascii=False))
 
-        with open("./graph_rag/data/edges.json", "w", encoding="utf-8") as f:
+        with open("./data/edges.json", "w", encoding="utf-8") as f:
             f.write(json.dumps(edges, indent=4, ensure_ascii=False))
 
     def _load_nodes(
@@ -228,7 +233,7 @@ class GrpahLoader:
                 not rel_type.replace("_", "").replace("-", "").isalnum()
                 or not rel_type[0].isalpha()
             ):
-                rel_type = f"`{rel_type}`"
+                rel_type = f"{rel_type}"
 
             src_name = re.sub(
                 self.reg_expression,
@@ -258,14 +263,14 @@ class GrpahLoader:
 
     def load2db(self) -> None:
         """Загрузка графа знаний"""
-        nodes = json.load(open("./graph_rag/data/nodes.json"))
-        edges = json.load(open("./graph_rag/data/edges.json"))
+        nodes = json.load(open("./data/nodes.json"))
+        edges = json.load(open("./data/edges.json"))
 
         query_node, params_node = self._load_nodes(nodes)
         query_edge, params_edge = self._load_edges(edges)
 
         with GraphDatabase.driver(
-            "bolt://neo4j-db:7687", auth=("neo4j", "password123")
+            self.neo4j_uri, auth=(self.neo4j_username, self.neo4j_password)
         ) as driver:
             driver.execute_query(self.cypher_loader.load("delete_db"), database="neo4j")
             driver.execute_query(query_node, params_node, database="neo4j")
