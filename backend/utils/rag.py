@@ -56,7 +56,10 @@ class RAG:
 
         for key, value in self._names_map.items():
             if entity.lower() in value:
+                logger.info(f"entity: {entity}, value: {value}")
                 return re.sub(self.reg_expression, "_", key).strip("_")
+
+        return re.sub(self.reg_expression, "_", entity).strip("_")
 
     def _check_graph_available(self) -> bool:
         """Проверяет, доступен ли граф и содержит ли он данные с правильными метками"""
