@@ -36,22 +36,6 @@ To install pre-commit hooks:
 poetry run pre-commit install
 ```
 
-## Run locally (dev)
-
-- Backend (FastAPI):
-  ```bash
-  poetry install
-  poetry run uvicorn backend.main:app --reload --port 8000
-  ```
-- Frontend (Vite):
-  ```bash
-  cd frontend
-  pnpm install
-  pnpm dev
-  ```
-
-## Run with Docker
-
 You can run the entire application (Frontend + Backend) using Docker Compose.
 
 ```bash
@@ -63,4 +47,5 @@ docker-compose up --build
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 The setup includes hot-reloading for both frontend and backend.
+
 
