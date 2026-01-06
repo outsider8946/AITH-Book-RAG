@@ -154,7 +154,3 @@ class TextExtractor:
             self.save_chapters(chapters)
 
         return chapters
-
-
-extractor = TextExtractor()
-extractor.extract("./data/monte-cristo.txt")

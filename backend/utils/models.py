@@ -34,13 +34,11 @@ class EntitiesRelationships(BaseModel):
 
 class Query(BaseModel):
     entity: str = Field(
-        description="Имя персонажа/места так, как они запписаны в вопросе."
+        description="Имя персонажа/места/предметы так, как они запписаны в вопросе."
     )
     relationship: List[str] = Field(
-        description="Глаголы / предикаты, которые относяся к данному персонажу/месту"
+        description="Глаголы / предикаты, которые относяся к данному персонажу/месту/предмету"
     )
-    objects: List[str] = Field(description="Цели действий")
-    context_clues: str = Field(description="Полезные уточнения")
 
 
 class CanonicalName(BaseModel):

@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 from itertools import count
 from typing import Literal
 from pathlib import Path
@@ -10,11 +11,11 @@ from pydantic import BaseModel
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from utils.rag import RAG
+from backend.utils.rag import RAG
+from backend.utils.downloader import Downloader
 
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -29,14 +30,32 @@ app = FastAPI(title="AITH Demo Backend", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "bolt://neo4j-db:7687",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-rag = RAG()
-logger.info("RAG система инициализирована")
+logger = logging.getLogger(__name__)
+
+rag = None
+
+
+@app.on_event("startup")
+async def startup_event():
+    global rag
+    if os.getenv("RELOAD", "0") == "1":
+        return
+    downloader = Downloader()
+    await downloader.download()
+    if rag is None:
+        rag = RAG()
+        logger.info("RAG система инициализирована")
+
 
 _ids = count(1)
 _messages = [
@@ -75,7 +94,9 @@ async def post_message(message_text: str = Body(..., embed=False)) -> Message:
         logger.info(f"Обработка запроса: {message_text[:50]}...")
         rag_result = await rag.run(query=message_text, chat_history=chat_history)
 
-        answer_content = rag_result.get("answer", "Извините, не удалось сгенерировать ответ.")
+        answer_content = rag_result.get(
+            "answer", "Извините, не удалось сгенерировать ответ."
+        )
 
         assistant_reply = Message(
             id=next(_ids), role="assistant", content=answer_content
