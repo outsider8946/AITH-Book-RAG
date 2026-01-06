@@ -1,9 +1,9 @@
 # AITH Book RAG
 
 ## Preinstall
-Poetry
-Docker
-Python
+- Poetry
+- Docker
+- Python
 
 ## SetUp
 Clone reposiory with following command:
@@ -46,5 +46,6 @@ docker-compose up --build
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 The setup includes hot-reloading for both frontend and backend.
+
 
 
