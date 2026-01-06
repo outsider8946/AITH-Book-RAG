@@ -1,51 +1,53 @@
 # AITH Book RAG
 
-## Usage
+## Preinstall
+- Poetry
+- Docker
+- Python
 
-To split the text into chapters only, run the following command:
-
-```bash
-python utils/text_splitter.py
-```
-
-## Entities and relations
-
-- Generate with LLM and save to `data/entities_and_relations`:
+## SetUp
+Clone reposiory with following command:
 
 ```bash
-poetry run python utils/db_loader.py
+git clone https://github.com/outsider8946/AITH-Book-RAG.git
 ```
-
-- Download pre-generated JSONs from the shared Drive folder into `data/entities_and_relations`:
+and go to root of project:
 
 ```bash
-poetry run python utils/download_entities.py
+cd AITH-Book-RAG/
 ```
 
-## Development
-
-To install the project dependencies:
+Install the project dependencies:
 
 ```bash
 poetry install
 ```
-
-To install pre-commit hooks:
-
 ```bash
-poetry run pre-commit install
+poetry env activate
 ```
+and copy poetry env to cmd (for example):
+```bash
+source /home/dolor/.cache/pypoetry/virtualenvs/aith-book-rag-QRipLkJA-py3.11/bin/activate
+```
+Copy enviroment variables example with command:
+```bash
+cp .env.example .env
+```
+and set enviroment variables (you can use Mistral or DeepSeek)
 
+Run docker:
 You can run the entire application (Frontend + Backend) using Docker Compose.
 
 ```bash
 docker-compose up --build
 ```
 
+
 - **Frontend**: [http://localhost:5173](http://localhost:5173)
 - **Backend API**: [http://localhost:8000](http://localhost:8000)
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 The setup includes hot-reloading for both frontend and backend.
+
 
 

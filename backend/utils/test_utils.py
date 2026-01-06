@@ -4,8 +4,8 @@ from ragas.metrics import (
     faithfulness,
     answer_relevancy,
     answer_correctness,
-    context_precision,
-    context_recall,
+    # context_precision,
+    # context_recall,
 )
 from ragas import evaluate
 from openai import OpenAI
@@ -21,7 +21,7 @@ load_dotenv()
 
 class TestRAG:
     def __init__(self):
-        self.questions = json.load(open("./data/test/dummy_questions.json"))
+        self.test_dataset = json.load(open("./backend/data/test/questions.json"))
         self.rag = RAG()
         os.environ["RAGAS_DISABLE_ASYNC"] = "1"
         self.llm = self._get_test_llm()
@@ -39,8 +39,6 @@ class TestRAG:
         return llm_factory(
             model_name, client=OpenAI(api_key=api_key, base_url=base_url)
         )
-
-    import json
 
     def _convert_to_ragas_format(self, input_path: str, output_path: str):
         # Загрузка
@@ -96,20 +94,26 @@ class TestRAG:
 
         return test_result
 
+    async def get_rag_answers_1(self):
+        tasks = [self.rag.run(query=item) for item in self.test_dataset["question"]]
+
+        if len(tasks) > 0:
+            results = await tqdm_asyncio.gather(*tasks, desc="RAG answer processing")
+            for i, r in enumerate(results):
+                print("ANSWER:", r["answer"])
+                self.test_dataset["answer"][i] = r["answer"]
+
+        with open("./backend/data/test/questions.json", "w", encoding="utf-8") as f:
+            f.write(json.dumps(self.test_dataset, indent=4, ensure_ascii=False))
+
     def compute_metrics(self):
-        self._convert_to_ragas_format(
-            "./data/test/test_result.json", "./data/test/ragas_input.json"
-        )
+        # self._convert_to_ragas_format(
+        #     "./data/test/questions.json", "./data/test/ragas_input.json"
+        # )
         test_dataset = Dataset.from_dict(
-            json.load(open("./data/test/ragas_input.json"))
+            json.load(open("./backend/data/test/questions.json"))
         )
-        metrics = [
-            faithfulness,
-            answer_relevancy,
-            answer_correctness,
-            context_precision,
-            context_recall,
-        ]
+        metrics = [faithfulness, answer_relevancy, answer_correctness]
 
         result = evaluate(
             dataset=test_dataset, metrics=metrics, llm=self.llm, raise_exceptions=False
