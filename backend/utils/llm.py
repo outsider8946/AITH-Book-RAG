@@ -25,7 +25,7 @@ class LLMDeepSeek(ChatOpenAI):
     def __init__(self, config: DictConfig):
         super().__init__(
             base_url="https://api.deepseek.com",
-            api_key=SecretStr(os.environ.get("DEEPSEEK_API_KEY", "")),
+            api_key=SecretStr(os.environ.get("LLM_API_KEY", "")),
             model=config.llm.deepseek_model_name,
             temperature=config.llm.temperature,
             top_p=config.llm.top_p,
@@ -39,7 +39,7 @@ class LLMMistral(ChatOpenAI):
     def __init__(self, config: DictConfig):
         super().__init__(
             base_url="https://api.mistral.ai/v1",
-            api_key=SecretStr(os.environ.get("MISTRAL_API_KEY", "")),
+            api_key=SecretStr(os.environ.get("LLM_API_KEY", "")),
             model=config.llm.mistral_model_name,
             temperature=config.llm.temperature,
             top_p=config.llm.top_p,

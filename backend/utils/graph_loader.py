@@ -14,9 +14,9 @@ from neo4j import GraphDatabase
 class GrpahLoader:
     def __init__(
         self,
-        path2data: str = "./data/structed_text",
-        path2kg: str = "./data/entities_and_relations",
-        path2summary: str = "./data/chapter_sumamries.json",
+        path2data: str = "./backend//data/structed_text",
+        path2kg: str = "./backend/data/entities_and_relations",
+        path2summary: str = "./backend/data/chapter_sumamries.json",
     ):
         self.reg_expression = r"[^a-zA-Zа-яА-ЯёЁ0-9]"
         self.llm = LLMWorker(config)
@@ -100,7 +100,7 @@ class GrpahLoader:
         """Дедупликация вершин"""
 
         self.names_map = {}  # key - non-canonical name, value - canonical name
-        names_map = json.load(open("./data/names_map.json"))
+        names_map = json.load(open("./backend/data/names_map.json"))
         unique_nodes = []
         for node in nodes:
             if node["entity_type"] in {"персонаж", "person", "персона"}:
@@ -185,10 +185,10 @@ class GrpahLoader:
 
         edges = self._normalize_edges(edges)
 
-        with open("./data/nodes.json", "w", encoding="utf-8") as f:
+        with open("./backend/data/nodes.json", "w", encoding="utf-8") as f:
             f.write(json.dumps(nodes, indent=4, ensure_ascii=False))
 
-        with open("./data/edges.json", "w", encoding="utf-8") as f:
+        with open("./backend/data/edges.json", "w", encoding="utf-8") as f:
             f.write(json.dumps(edges, indent=4, ensure_ascii=False))
 
     def _load_nodes(
@@ -263,8 +263,8 @@ class GrpahLoader:
 
     def load2db(self) -> None:
         """Загрузка графа знаний"""
-        nodes = json.load(open("./data/nodes.json"))
-        edges = json.load(open("./data/edges.json"))
+        nodes = json.load(open("./backend/data/nodes.json"))
+        edges = json.load(open("./backend/data/edges.json"))
 
         query_node, params_node = self._load_nodes(nodes)
         query_edge, params_edge = self._load_edges(edges)

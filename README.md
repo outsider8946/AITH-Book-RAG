@@ -36,6 +36,8 @@ cp .env.example .env
 and set enviroment variables (you can use Mistral or DeepSeek)
 
 Run docker:
+You can run the entire application (Frontend + Backend) using Docker Compose.
+
 ```bash
 docker-compose up --build
 ```
