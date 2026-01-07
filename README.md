@@ -17,6 +17,11 @@ and go to root of project:
 cd AITH-Book-RAG/
 ```
 
+and switch to main branch:
+```bash
+git switch main
+```
+
 Install the project dependencies:
 
 ```bash
@@ -48,6 +53,7 @@ docker-compose up --build
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 The setup includes hot-reloading for both frontend and backend.
+
 
 
 
