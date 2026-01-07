@@ -5,6 +5,7 @@ from omegaconf import DictConfig
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_ollama import OllamaEmbeddings
+from langchain_mistralai import MistralAIEmbeddings
 from backend.utils.templates import (
     FEATURE_EXTRACT_TEMPLATE,
     CANONICAL_NAMES_TEMPLATE,
@@ -25,7 +26,7 @@ class LLMDeepSeek(ChatOpenAI):
     def __init__(self, config: DictConfig):
         super().__init__(
             base_url="https://api.deepseek.com",
-            api_key=SecretStr(os.environ.get("LLM_API_KEY", "")),
+            api_key=SecretStr(os.environ.get("DEEPSEEK_API_KEY", "")),
             model=config.llm.deepseek_model_name,
             temperature=config.llm.temperature,
             top_p=config.llm.top_p,
@@ -39,7 +40,7 @@ class LLMMistral(ChatOpenAI):
     def __init__(self, config: DictConfig):
         super().__init__(
             base_url="https://api.mistral.ai/v1",
-            api_key=SecretStr(os.environ.get("LLM_API_KEY", "")),
+            api_key=SecretStr(os.environ.get("MISTRAL_API_KEY", "")),
             model=config.llm.mistral_model_name,
             temperature=config.llm.temperature,
             top_p=config.llm.top_p,
@@ -54,6 +55,13 @@ class EmbeddingOllama(OllamaEmbeddings):
             model=config.embeddings.ollama_model_name,
         )
 
+class EmbeddingMistral(MistralAIEmbeddings):
+    def __init__(self, config: DictConfig):
+        super().__init__(
+            api_key=SecretStr(os.environ.get("MISTRAL_API_KEY", "")),
+            model=config.embeddings.mistral_model_name
+        )
+    
 
 class LLMWorker:
     def __init__(self, config: DictConfig) -> None:
@@ -62,7 +70,7 @@ class LLMWorker:
         self.llm = llm_map.get(llm_type)(config)
 
         embeddings_type = config.embeddings.type
-        embeddings_map = {"ollama": EmbeddingOllama}
+        embeddings_map = {"ollama": EmbeddingOllama, "mistral": EmbeddingMistral}
         self.embeddings = embeddings_map.get(embeddings_type)(config)
 
         self.history = []

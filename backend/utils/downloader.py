@@ -4,13 +4,13 @@ from pathlib import Path
 import gdown
 import httpx
 import logging
+from backend.utils.config_loader import config
 
 
 class Downloader:
     logger = logging.getLogger(__name__)
     ollama_url = os.environ.get("OLLAMA_URL", "http://ollama:11434")
-    embedding_model = os.environ.get("EMBEDDING_MODEL", "nomic-embed-text")
-    print()
+    embedding_model = config.embeddings.ollama_model_name
     path2data = Path("./backend/data")
     data = [
         ("🗂️ RAW text", os.environ.get("RAW_TEXT_LINK", ""), "monte-cristo.txt"),

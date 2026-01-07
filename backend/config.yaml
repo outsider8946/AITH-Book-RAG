@@ -9,4 +9,5 @@ llm:
 
 embeddings:
   ollama_model_name: "nomic-embed-text"
+  mistral_model_name: "mistral-embed"
   type: "ollama"
